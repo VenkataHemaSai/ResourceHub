@@ -1,0 +1,22 @@
+RESOURCEHUB_PLAN.md
+node_modules/
+
+.env
+.env.*
+!.env.example  # negation keeps the example tracked while blocking real secrets
+
+dist/
+build/
+client/dist/
+server/dist/
+
+server/src/generated/
+
+logs/
+*.log
+npm-debug.log*
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
