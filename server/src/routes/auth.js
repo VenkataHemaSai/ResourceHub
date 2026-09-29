@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
-import { hashPassword, generateToken, setAuthCookie } from '../lib/auth.js';
+import { requireAuth } from '../middleware/requireAuth.js';
+import { hashPassword, comparePassword, generateToken, setAuthCookie, clearAuthCookie } from '../lib/auth.js';
 import prisma from '../lib/prisma.js';
-import { ConflictError } from '../lib/errors.js';
+import { ConflictError, UnauthorizedError } from '../lib/errors.js';
 
 const router = Router();
 
@@ -77,6 +78,63 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
     } else {
       next(err);
     }
+  }
+});
+
+const loginSchema = z.object({
+  email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+router.post('/login', validate(loginSchema), async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new UnauthorizedError('Invalid email or password');
+    }
+
+    const isValid = await comparePassword(password, user.passwordHash);
+    if (!isValid) {
+      throw new UnauthorizedError('Invalid email or password');
+    }
+
+    const token = generateToken({
+      userId: user.id,
+      organizationId: user.organizationId,
+      role: user.role,
+    });
+    
+    setAuthCookie(res, token);
+
+    const { passwordHash: _, ...safeUser } = user;
+    res.json(safeUser);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/logout', (req, res) => {
+  clearAuthCookie(res);
+  res.json({ success: true });
+});
+
+router.get('/me', requireAuth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      include: { organization: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedError('User not found');
+    }
+
+    const { passwordHash: _, ...safeUser } = user;
+    res.json(safeUser);
+  } catch (err) {
+    next(err);
   }
 });
 
