@@ -135,26 +135,26 @@ Should regular members see **who** booked a slot, or only that it's booked? Defa
 
 ### Task F1.1 — Auth context and hooks 🔴
 - [ ] `AuthProvider`: calls `/auth/me` on load, exposes `user`, `organization`, `isLoading`, and `login`, `register`, `logout` actions
-- [ ] **On login, register, and logout: clear the entire TanStack Query cache** so one account's data can never appear for another
-- [ ] Nothing auth-related stored in localStorage or sessionStorage
+- [x] **On login, register, and logout: clear the entire TanStack Query cache** so one account's data can never appear for another
+- [x] Nothing auth-related stored in localStorage or sessionStorage
 
 **Done when:** log in as org A, log out, log in as org B: no org A data flashes or persists.
 **🛑 Review:** test the org A to org B switch by hand and watch the network tab.
 **Commit:** `Add auth provider that clears cached data on session changes`
 
 ### Task F1.2 — Login page 🟡
-- [ ] Form (email, password) with the form kit; submit pending state
-- [ ] Generic error on bad credentials (don't say which field was wrong)
-- [ ] Redirect to the page the user originally wanted, or the home page
+- [x] Form (email, password) with the form kit; submit pending state
+- [x] Generic error on bad credentials (don't say which field was wrong)
+- [x] Redirect to the page the user originally wanted, or the home page
 
 **Done when:** seeded credentials log you in, bad ones show the generic error.
 **🛑 Review:** refresh after login: still logged in.
 **Commit:** `Add login page`
 
 ### Task F1.3 — Register page 🟡
-- [ ] Form: organization name, your name, email, password (with strength hint)
-- [ ] Field errors for duplicate email and weak password mapped from the server
-- [ ] Link between login and register pages
+- [x] Form: organization name, your name, email, password (with strength hint)
+- [x] Field errors for duplicate email and weak password mapped from the server
+- [x] Link between login and register pages
 
 **Done when:** a brand-new organization registers and lands in the app as admin.
 **🛑 Review:** duplicate email error shows under the email field.
@@ -163,7 +163,7 @@ Should regular members see **who** booked a slot, or only that it's booked? Defa
 ### Task F1.4 — Route protection 🟡
 - [ ] `ProtectedRoute` (redirects unauthenticated users to login, remembers the target)
 - [ ] `RoleGate` component for hiding admin-only UI and a guard for admin-only routes (shows a "no access" page)
-- [ ] Logged-in users visiting login or register get redirected home
+- [x] Logged-in users visiting login or register get redirected home
 
 **Done when:** every combination (logged out, member, admin) behaves correctly.
 **🛑 Review:** open an admin URL as a member: you see "no access." Remember this is cosmetic; the backend still returns 403.

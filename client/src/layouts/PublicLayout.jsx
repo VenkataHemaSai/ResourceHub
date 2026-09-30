@@ -1,6 +1,19 @@
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "@/features/auth/AuthContext";
+import { LoadingState } from "@/components/shared/LoadingState";
 
 export default function PublicLayout() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingState fullScreen message="Loading..." />;
+  }
+
+  // If already logged in, redirect them away from the public layout (login/register)
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-md mt-16">

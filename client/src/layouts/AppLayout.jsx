@@ -1,8 +1,12 @@
 import { Outlet, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
+import { useAuth } from "@/features/auth/AuthContext";
+import { RoleGate } from "@/components/shared/RoleGate";
 
 export default function AppLayout() {
+  const { logout, isLoggingOut } = useAuth();
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -28,6 +32,14 @@ export default function AppLayout() {
               >
                 Resources
               </Link>
+              <RoleGate allowedRoles={['ADMIN']}>
+                <Link
+                  to="/team"
+                  className="text-sm font-medium transition-colors hover:text-foreground/80 text-foreground/60"
+                >
+                  Team
+                </Link>
+              </RoleGate>
             </nav>
           </div>
 
@@ -36,7 +48,7 @@ export default function AppLayout() {
               <User className="h-4 w-4" />
               <span className="hidden md:inline">Profile</span>
             </Button>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => logout()} disabled={isLoggingOut}>
               <LogOut className="h-4 w-4" />
               <span className="hidden md:inline">Log Out</span>
             </Button>
