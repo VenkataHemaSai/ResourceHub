@@ -7,6 +7,7 @@ import RegisterPage from "@/pages/RegisterPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import UiShowcase from "@/pages/UiShowcase";
 import TeamPage from "@/pages/TeamPage";
+import ResourcesPage from "@/pages/ResourcesPage";
 import { ProtectedRoute } from "@/components/shared/ProtectedRoute";
 import { RoleGate } from "@/components/shared/RoleGate";
 
@@ -23,7 +24,7 @@ export const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       {
         path: "resources",
-        element: <div className="p-4">Resources List (Coming Soon)</div>,
+        element: <ResourcesPage />,
       },
       {
         path: "team",
