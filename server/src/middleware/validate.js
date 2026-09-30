@@ -1,8 +1,8 @@
 import { ValidationError } from '../lib/errors.js';
 
-export function validate(schema) {
+export function validate(schema, target = 'body') {
   return (req, res, next) => {
-    const result = schema.safeParse(req.body);
+    const result = schema.safeParse(req[target] || {});
     if (!result.success) {
       const fields = {};
       result.error.issues.forEach(i => {
@@ -11,7 +11,12 @@ export function validate(schema) {
       });
       return next(new ValidationError(fields));
     }
-    req.body = result.data;
+    if (target === 'query') {
+      Object.keys(req.query).forEach(k => delete req.query[k]);
+      Object.assign(req.query, result.data);
+    } else {
+      req[target] = result.data;
+    }
     next();
   };
 }
