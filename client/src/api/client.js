@@ -24,7 +24,6 @@ export async function apiClient(endpoint, { body, ...customConfig } = {}) {
   try {
     response = await fetch(endpoint, config);
   } catch (error) {
-    // Network failure (server down, no internet)
     throw {
       status: 0,
       code: "network_error",
@@ -33,7 +32,6 @@ export async function apiClient(endpoint, { body, ...customConfig } = {}) {
     };
   }
 
-  // 204 No Content
   if (response.status === 204) {
     return null;
   }
@@ -49,7 +47,6 @@ export async function apiClient(endpoint, { body, ...customConfig } = {}) {
     return data;
   }
 
-  // Handle standard API errors defined by our backend
   const errPayload = data?.error || {};
 
   throw {

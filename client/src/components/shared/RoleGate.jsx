@@ -1,4 +1,4 @@
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 export function RoleGate({ children, allowedRoles = [] }) {
   const { user } = useAuth();

@@ -1,9 +1,6 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import healthRouter from './routes/health.js';
-import authRouter from './routes/auth.js';
-import usersRouter from './routes/users.js';
-import resourcesRouter from './routes/resources.js';
+import apiRouter from './routes/index.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -11,10 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/api/v1', healthRouter);
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/users', usersRouter);
-app.use('/api/v1/resources', resourcesRouter);
+app.use('/api/v1', apiRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

@@ -1,19 +1,24 @@
-import { createBrowserRouter, Outlet } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import AppLayout from "@/layouts/AppLayout";
 import PublicLayout from "@/layouts/PublicLayout";
-import HomePage from "@/pages/HomePage";
-import LoginPage from "@/pages/LoginPage";
-import RegisterPage from "@/pages/RegisterPage";
+import LandingPage from "@/pages/landing/LandingPage";
+import HomePage from "@/pages/dashboard/HomePage";
+import LoginPage from "@/pages/auth/LoginPage";
+import RegisterPage from "@/pages/auth/RegisterPage";
 import NotFoundPage from "@/pages/NotFoundPage";
-import UiShowcase from "@/pages/UiShowcase";
-import TeamPage from "@/pages/TeamPage";
-import ResourcesPage from "@/pages/ResourcesPage";
+import TeamPage from "@/pages/team/TeamPage";
+import ResourcesPage from "@/pages/resources/ResourcesPage";
+import ReservationsPage from "@/pages/reservations/ReservationsPage";
 import { ProtectedRoute } from "@/components/shared/ProtectedRoute";
 import { RoleGate } from "@/components/shared/RoleGate";
 
 export const router = createBrowserRouter([
   {
     path: "/",
+    element: <LandingPage />,
+  },
+  {
+    path: "/dashboard",
     element: (
       <ProtectedRoute>
         <AppLayout />
@@ -22,10 +27,8 @@ export const router = createBrowserRouter([
     errorElement: <NotFoundPage />,
     children: [
       { index: true, element: <HomePage /> },
-      {
-        path: "resources",
-        element: <ResourcesPage />,
-      },
+      { path: "resources", element: <ResourcesPage /> },
+      { path: "reservations", element: <ReservationsPage /> },
       {
         path: "team",
         element: (
@@ -43,12 +46,5 @@ export const router = createBrowserRouter([
       { path: "register", element: <RegisterPage /> },
     ],
   },
-  {
-    path: "_ui",
-    element: <UiShowcase />,
-  },
-  {
-    path: "*",
-    element: <NotFoundPage />,
-  },
+  { path: "*", element: <NotFoundPage /> },
 ]);

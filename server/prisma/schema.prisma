@@ -19,8 +19,9 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
-  resources Resource[]
+  users        User[]
+  resources    Resource[]
+  reservations Reservation[]
 }
 
 model User {
@@ -34,6 +35,7 @@ model User {
   updatedAt      DateTime     @updatedAt
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  reservations   Reservation[]
 
   @@index([organizationId])
 }
@@ -49,7 +51,33 @@ model Resource {
   updatedAt      DateTime     @updatedAt
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  reservations   Reservation[]
 
   @@unique([organizationId, name])
   @@index([organizationId, isActive])
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model Reservation {
+  id             String            @id @default(uuid())
+  organizationId String
+  resourceId     String
+  userId         String
+  startTime      DateTime          @db.Timestamptz(3)
+  endTime        DateTime          @db.Timestamptz(3)
+  status         ReservationStatus @default(CONFIRMED)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  resource       Resource          @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  user           User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, userId])
+  @@index([resourceId, startTime])
 }

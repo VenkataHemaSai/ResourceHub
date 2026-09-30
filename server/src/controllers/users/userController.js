@@ -1,31 +1,20 @@
-import { Router } from 'express';
 import { z } from 'zod';
-import { validate } from '../middleware/validate.js';
-import { requireAuth } from '../middleware/requireAuth.js';
-import { requireRole } from '../middleware/requireRole.js';
-import prisma from '../lib/prisma.js';
-import { hashPassword } from '../lib/auth.js';
-import { ConflictError } from '../lib/errors.js';
+import prisma from '../../utils/prisma.js';
+import { hashPassword } from '../../utils/auth.js';
+import { ConflictError } from '../../utils/errors.js';
 
-const router = Router();
-
-// All user routes require authentication and ADMIN role
-router.use(requireAuth);
-router.use(requireRole('ADMIN'));
-
-const createUserSchema = z.object({
+export const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  // We strictly ignore organizationId or role if passed by the client
 });
 
-const listUsersSchema = z.object({
+export const listUsersSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-router.post('/', validate(createUserSchema), async (req, res, next) => {
+export async function createUser(req, res, next) {
   try {
     const { name, email, password } = req.body;
 
@@ -41,8 +30,8 @@ router.post('/', validate(createUserSchema), async (req, res, next) => {
         name,
         email,
         passwordHash,
-        role: 'MEMBER', // Forced to MEMBER
-        organizationId: req.user.organizationId, // Forced to caller's org
+        role: 'MEMBER',
+        organizationId: req.user.organizationId,
       },
     });
 
@@ -55,9 +44,9 @@ router.post('/', validate(createUserSchema), async (req, res, next) => {
       next(err);
     }
   }
-});
+}
 
-router.get('/', async (req, res, next) => {
+export async function listUsers(req, res, next) {
   try {
     const { page, limit } = listUsersSchema.parse(req.query);
     const skip = (page - 1) * limit;
@@ -88,6 +77,4 @@ router.get('/', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
-
-export default router;
+}

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import app from '../src/app.js';
-import prisma from '../src/lib/prisma.js';
+import prisma from '../src/utils/prisma.js';
 
 describe('Resources API', () => {
   let admin, member, organization;

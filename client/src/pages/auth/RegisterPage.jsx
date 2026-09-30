@@ -14,9 +14,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useAuth } from '@/features/auth/AuthContext';
-import { getErrorMessage } from '@/lib/errorMessages';
-import { setFormErrors } from '@/lib/form';
+import { useAuth } from '@/context/AuthContext';
+import { getErrorMessage } from '@/api/errorMessages';
+import { setFormErrors } from '@/api/form';
 
 const registerSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
@@ -40,7 +40,7 @@ export default function RegisterPage() {
     setServerError(null);
     try {
       await register(values);
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       if (err.fields) {
         setFormErrors(err.fields, form);

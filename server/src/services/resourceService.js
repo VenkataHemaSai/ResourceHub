@@ -1,5 +1,5 @@
-import prisma from '../lib/prisma.js';
-import { NotFoundError, ConflictError } from '../lib/errors.js';
+import prisma from '../utils/prisma.js';
+import { NotFoundError, ConflictError } from '../utils/errors.js';
 
 export const resourceService = {
   /**

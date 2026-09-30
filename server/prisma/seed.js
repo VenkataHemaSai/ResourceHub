@@ -1,120 +1,66 @@
-import bcrypt from 'bcrypt';
 import prisma from '../src/lib/prisma.js';
+import bcrypt from 'bcrypt';
 
 async function main() {
-  const passwordHash = await bcrypt.hash('hemasai09', 10);
-
   console.log('Seeding database...');
 
-  // Organization 1: Tech Innovators
-  const org1 = await prisma.organization.upsert({
-    where: { slug: 'tech-innovators' },
+  // 1. Create Organization
+  const org = await prisma.organization.upsert({
+    where: { slug: 'acme-corp' },
     update: {},
     create: {
-      name: 'Tech Innovators',
-      slug: 'tech-innovators',
-      timezone: 'America/Los_Angeles',
+      name: 'Acme Corporation',
+      slug: 'acme-corp',
     },
   });
 
-  // Users for Org 1
-  await prisma.user.upsert({
-    where: { email: 'admin@techinnovators.com' },
-    update: {},
+  // 2. Create Admin User
+  const adminPassword = await bcrypt.hash('admin123', 10);
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@acme.com' },
+    update: {
+      passwordHash: adminPassword,
+    },
     create: {
-      organizationId: org1.id,
-      name: 'Alice Admin',
-      email: 'admin@techinnovators.com',
-      passwordHash,
+      email: 'admin@acme.com',
+      name: 'Admin User',
+      passwordHash: adminPassword,
       role: 'ADMIN',
+      organizationId: org.id,
     },
   });
 
-  await prisma.user.upsert({
-    where: { email: 'member@techinnovators.com' },
-    update: {},
-    create: {
-      organizationId: org1.id,
-      name: 'Bob Member',
-      email: 'member@techinnovators.com',
-      passwordHash,
-      role: 'MEMBER',
-    },
-  });
-
-  // Resources for Org 1
-  const org1Resources = [
-    { name: 'Nvidia A100 GPU', type: 'Compute', description: 'High-performance computing node' },
-    { name: 'Conference Room A', type: 'Room', description: 'Seats 10, contains projector' },
-    { name: '3D Printer (Resin)', type: 'Equipment', description: 'Formlabs Form 3' }
+  // 3. Create Resources
+  const resources = [
+    { name: 'Conference Room A', type: 'ROOM', description: 'Large room with a projector and whiteboard.', isActive: true },
+    { name: 'Conference Room B', type: 'ROOM', description: 'Small room for 1-on-1 meetings.', isActive: true },
+    { name: 'MacBook Pro 16"', type: 'EQUIPMENT', description: 'M3 Max, 64GB RAM.', isActive: true },
+    { name: 'Company Tesla', type: 'VEHICLE', description: 'Model 3 Long Range.', isActive: true },
+    { name: 'Broken Projector', type: 'EQUIPMENT', description: 'Awaiting repairs.', isActive: false },
   ];
 
-  for (const res of org1Resources) {
+  for (const res of resources) {
     await prisma.resource.upsert({
-      where: { organizationId_name: { organizationId: org1.id, name: res.name } },
+      where: {
+        organizationId_name: {
+          organizationId: org.id,
+          name: res.name,
+        },
+      },
       update: {},
       create: {
-        organizationId: org1.id,
-        ...res
-      }
+        ...res,
+        organizationId: org.id,
+      },
     });
   }
 
-  // Organization 2: Local Library
-  const org2 = await prisma.organization.upsert({
-    where: { slug: 'local-library' },
-    update: {},
-    create: {
-      name: 'Local Library',
-      slug: 'local-library',
-      timezone: 'America/New_York',
-    },
-  });
-
-  // Users for Org 2
-  await prisma.user.upsert({
-    where: { email: 'admin@locallibrary.com' },
-    update: {},
-    create: {
-      organizationId: org2.id,
-      name: 'Carol Admin',
-      email: 'admin@locallibrary.com',
-      passwordHash,
-      role: 'ADMIN',
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: 'member@locallibrary.com' },
-    update: {},
-    create: {
-      organizationId: org2.id,
-      name: 'Dave Member',
-      email: 'member@locallibrary.com',
-      passwordHash,
-      role: 'MEMBER',
-    },
-  });
-
-  // Resources for Org 2
-  const org2Resources = [
-    { name: 'Study Room 1', type: 'Room', description: 'Quiet study room for 2' },
-    { name: 'Public Computer 04', type: 'Computer', description: 'Windows 11 with MS Office' },
-    { name: 'Microfilm Reader', type: 'Equipment', description: 'Archive room reader' }
-  ];
-
-  for (const res of org2Resources) {
-    await prisma.resource.upsert({
-      where: { organizationId_name: { organizationId: org2.id, name: res.name } },
-      update: {},
-      create: {
-        organizationId: org2.id,
-        ...res
-      }
-    });
-  }
-
-  console.log('Seed completed successfully.');
+  console.log('Seed completed successfully!');
+  console.log('--------------------------------------------------');
+  console.log('Test Account created:');
+  console.log('Email:    admin@acme.com');
+  console.log('Password: admin123');
+  console.log('--------------------------------------------------');
 }
 
 main()
@@ -123,6 +69,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    // Only disconnect if not running in an environment that maintains a pool across calls
     await prisma.$disconnect();
   });

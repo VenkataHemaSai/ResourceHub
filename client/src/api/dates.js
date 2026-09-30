@@ -23,7 +23,7 @@ export function toOrgUtcIso(dateObj, timeZone) {
  */
 export function getOrgWeekRange(isoString, timeZone) {
   const zonedDate = toZonedTime(new Date(isoString), timeZone);
-  const start = startOfWeek(zonedDate, { weekStartsOn: 1 }); // Monday start
+  const start = startOfWeek(zonedDate, { weekStartsOn: 1 });
   const end = endOfWeek(zonedDate, { weekStartsOn: 1 });
   
   return {

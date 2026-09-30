@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api';
+import { apiClient } from '@/api/client';
 
 const AuthContext = createContext(null);
 
@@ -8,16 +8,14 @@ export function AuthProvider({ children }) {
   const queryClient = useQueryClient();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Fetch the current user session
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => apiClient('/api/v1/auth/me'),
     retry: false,
-    staleTime: Infinity, // don't continually refetch the session, rely on mutations to update it
+    staleTime: Infinity,
   });
 
   useEffect(() => {
-    // If the query finishes and returns user data, mark as authenticated
     if (data?.user) {
       setIsAuthenticated(true);
     } else {
@@ -28,7 +26,6 @@ export function AuthProvider({ children }) {
   const handleSessionChange = () => {
     // CRITICAL: Clear all cached data so org A's data doesn't leak into org B's session
     queryClient.clear();
-    // Re-fetch the session
     refetch();
   };
 
@@ -50,7 +47,7 @@ export function AuthProvider({ children }) {
     mutationFn: () => apiClient('/api/v1/auth/logout', { method: 'POST' }),
     onSuccess: () => {
       handleSessionChange();
-      window.location.href = '/login'; // hard redirect to clear app state fully
+      window.location.href = '/login';
     },
   });
 

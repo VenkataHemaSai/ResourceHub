@@ -1,4 +1,4 @@
-import { AppError } from '../lib/errors.js';
+import { AppError } from '../utils/errors.js';
 import { config } from '../config.js';
 
 export function notFoundHandler(req, res, next) {

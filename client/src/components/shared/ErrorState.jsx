@@ -1,6 +1,6 @@
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getErrorMessage } from '@/lib/errorMessages';
+import { getErrorMessage } from '@/api/errorMessages';
 
 export function ErrorState({ error, message, onRetry }) {
   const displayMessage = message || (error?.code ? getErrorMessage(error.code) : getErrorMessage('default'));

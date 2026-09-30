@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import app from '../src/app.js';
-import prisma from '../src/lib/prisma.js';
+import prisma from '../src/utils/prisma.js';
 
 describe('POST /api/v1/auth/register', () => {
   it('should register a new organization and user', async () => {

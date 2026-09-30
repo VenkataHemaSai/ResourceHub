@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import app from '../src/app.js';
-import prisma from '../src/lib/prisma.js';
-import { hashPassword, generateToken } from '../src/lib/auth.js';
+import prisma from '../src/utils/prisma.js';
+import { hashPassword, generateToken } from '../src/utils/auth.js';
 
 describe('GET /api/v1/auth/me', () => {
   let token;

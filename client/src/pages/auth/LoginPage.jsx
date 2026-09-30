@@ -14,8 +14,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useAuth } from '@/features/auth/AuthContext';
-import { getErrorMessage } from '@/lib/errorMessages';
+import { useAuth } from '@/context/AuthContext';
+import { getErrorMessage } from '@/api/errorMessages';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
@@ -40,7 +40,7 @@ export default function LoginPage() {
       
       // Redirect to the page they tried to visit, or dashboard
       const params = new URLSearchParams(location.search);
-      const redirectTo = params.get('redirectTo') || '/';
+      const redirectTo = params.get('redirectTo') || '/dashboard';
       navigate(redirectTo, { replace: true });
     } catch (err) {
       if (err.status === 401) {

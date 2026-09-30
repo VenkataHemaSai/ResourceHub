@@ -12,7 +12,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { setFormErrors } from '@/lib/form';
+import { setFormErrors } from '@/api/form';
 import { useState } from 'react';
 
 const formSchema = z.object({

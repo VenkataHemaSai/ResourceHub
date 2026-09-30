@@ -1,5 +1,5 @@
 import { beforeEach } from 'vitest';
-import prisma from '../src/lib/prisma.js';
+import prisma from '../src/utils/prisma.js';
 
 beforeEach(async () => {
   // Clear all tables

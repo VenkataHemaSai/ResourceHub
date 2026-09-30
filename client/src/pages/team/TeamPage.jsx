@@ -3,10 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { apiClient } from '@/lib/api';
-import { useAuth } from '@/features/auth/AuthContext';
-import { getErrorMessage } from '@/lib/errorMessages';
-import { setFormErrors } from '@/lib/form';
+import { apiClient } from '@/api/client';
+import { useAuth } from '@/context/AuthContext';
+import { getErrorMessage } from '@/api/errorMessages';
+import { setFormErrors } from '@/api/form';
 
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ErrorState } from '@/components/shared/ErrorState';

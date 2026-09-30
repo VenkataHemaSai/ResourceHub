@@ -4,7 +4,7 @@ import {
   comparePassword,
   generateToken,
   verifyToken
-} from '../src/lib/auth.js';
+} from '../src/utils/auth.js';
 import jwt from 'jsonwebtoken';
 import { config } from '../src/config.js';
 

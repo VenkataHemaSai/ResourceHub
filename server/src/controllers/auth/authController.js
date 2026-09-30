@@ -1,12 +1,7 @@
-import { Router } from 'express';
 import { z } from 'zod';
-import { validate } from '../middleware/validate.js';
-import { requireAuth } from '../middleware/requireAuth.js';
-import { hashPassword, comparePassword, generateToken, setAuthCookie, clearAuthCookie } from '../lib/auth.js';
-import prisma from '../lib/prisma.js';
-import { ConflictError, UnauthorizedError } from '../lib/errors.js';
-
-const router = Router();
+import { hashPassword, comparePassword, generateToken, setAuthCookie, clearAuthCookie } from '../../utils/auth.js';
+import prisma from '../../utils/prisma.js';
+import { ConflictError, UnauthorizedError } from '../../utils/errors.js';
 
 const registerSchema = z.object({
   orgName: z.string().min(2, 'Organization name must be at least 2 characters'),
@@ -15,15 +10,21 @@ const registerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
+export const loginSchema = z.object({
+  email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+export { registerSchema };
+
 function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
-router.post('/register', validate(registerSchema), async (req, res, next) => {
+export async function register(req, res, next) {
   try {
     const { orgName, userName, email, password } = req.body;
 
-    // Fast check for existing user
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       throw new ConflictError('Email already in use');
@@ -37,13 +38,9 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
 
     const passwordHash = await hashPassword(password);
 
-    // Transaction guarantees either both are created, or neither is created
     const result = await prisma.$transaction(async (tx) => {
       const org = await tx.organization.create({
-        data: {
-          name: orgName,
-          slug,
-        }
+        data: { name: orgName, slug },
       });
 
       const user = await tx.user.create({
@@ -53,13 +50,12 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
           email,
           passwordHash,
           role: 'ADMIN',
-        }
+        },
       });
 
       return user;
     });
 
-    // Generate token & set HTTP-only cookie
     const token = generateToken({
       userId: result.id,
       organizationId: result.organizationId,
@@ -67,26 +63,18 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
     });
     setAuthCookie(res, token);
 
-    // Strip passwordHash before sending the response
     const { passwordHash: _, ...safeUser } = result;
-
     res.status(201).json(safeUser);
   } catch (err) {
-    // Let global error handler catch it (including Prisma unique constraint errors if concurrent)
     if (err.code === 'P2002' && err.meta?.target?.includes('email')) {
       next(new ConflictError('Email already in use'));
     } else {
       next(err);
     }
   }
-});
+}
 
-const loginSchema = z.object({
-  email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-router.post('/login', validate(loginSchema), async (req, res, next) => {
+export async function login(req, res, next) {
   try {
     const { email, password } = req.body;
 
@@ -105,7 +93,7 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
       organizationId: user.organizationId,
       role: user.role,
     });
-    
+
     setAuthCookie(res, token);
 
     const { passwordHash: _, ...safeUser } = user;
@@ -113,14 +101,14 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}
 
-router.post('/logout', (req, res) => {
+export function logout(req, res) {
   clearAuthCookie(res);
   res.json({ success: true });
-});
+}
 
-router.get('/me', requireAuth, async (req, res, next) => {
+export async function me(req, res, next) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
@@ -136,6 +124,4 @@ router.get('/me', requireAuth, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
-
-export default router;
+}

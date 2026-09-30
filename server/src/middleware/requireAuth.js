@@ -1,5 +1,5 @@
-import { verifyToken } from '../lib/auth.js';
-import { UnauthorizedError } from '../lib/errors.js';
+import { verifyToken } from '../utils/auth.js';
+import { UnauthorizedError } from '../utils/errors.js';
 
 export function requireAuth(req, res, next) {
   try {

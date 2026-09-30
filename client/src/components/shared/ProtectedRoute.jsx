@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { LoadingState } from '@/components/shared/LoadingState';
 
 export function ProtectedRoute({ children, allowedRoles = [] }) {
