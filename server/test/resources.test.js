@@ -9,7 +9,7 @@ describe('Resources API', () => {
   let activeResource, inactiveResource;
 
   beforeEach(async () => {
-    const randomVal = Math.random().toString(36).substring(7);
+    const randomVal = Date.now().toString() + Math.random().toString(36).substring(2);
 
     // Setup Admin
     const resA = await request(app).post('/api/v1/auth/register').send({
@@ -18,6 +18,8 @@ describe('Resources API', () => {
       email: `res_admin${randomVal}@test.com`,
       password: 'password123',
     });
+    
+    if (resA.status !== 201) throw new Error(`Admin A setup failed: ${JSON.stringify(resA.body)}`);
     adminToken = resA.headers['set-cookie'][0];
     admin = resA.body;
     organization = { id: admin.organizationId };
@@ -29,19 +31,23 @@ describe('Resources API', () => {
       email: `res_admin2${randomVal}@test.com`,
       password: 'password123'
     });
+    if (bSetup.status !== 201) throw new Error(`Admin B setup failed: ${JSON.stringify(bSetup.body)}`);
     
     // Create member properly via Admin A's token
-    await request(app).post('/api/v1/users').set('Cookie', adminToken).send({
+    const memberCreate = await request(app).post('/api/v1/users').set('Cookie', adminToken).send({
       name: 'Member',
       email: `res_member${randomVal}@test.com`,
       password: 'password123'
     });
+    if (memberCreate.status !== 201) throw new Error(`Member create failed: ${JSON.stringify(memberCreate.body)}`);
     
     // Login as member
     const loginRes = await request(app).post('/api/v1/auth/login').send({
       email: `res_member${randomVal}@test.com`,
       password: 'password123'
     });
+    if (loginRes.status !== 200) throw new Error(`Member login failed: ${JSON.stringify(loginRes.body)}`);
+    
     memberToken = loginRes.headers['set-cookie'][0];
 
     // Create Resources
