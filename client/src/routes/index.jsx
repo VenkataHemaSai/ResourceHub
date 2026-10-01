@@ -10,6 +10,7 @@ import TeamPage from "@/pages/team/TeamPage";
 import ResourcesPage from "@/pages/resources/ResourcesPage";
 import ResourceDetailPage from "@/pages/resources/ResourceDetailPage";
 import ReservationsPage from "@/pages/reservations/ReservationsPage";
+import AdminReservationsPage from "@/pages/admin/AdminReservationsPage";
 import { ProtectedRoute } from "@/components/shared/ProtectedRoute";
 import { RoleGate } from "@/components/shared/RoleGate";
 
@@ -36,6 +37,14 @@ export const router = createBrowserRouter([
         element: (
           <RoleGate allowedRoles={['ADMIN']}>
             <TeamPage />
+          </RoleGate>
+        ),
+      },
+      {
+        path: "admin/reservations",
+        element: (
+          <RoleGate allowedRoles={['ADMIN']}>
+            <AdminReservationsPage />
           </RoleGate>
         ),
       },

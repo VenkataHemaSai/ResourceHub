@@ -14,7 +14,7 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CardSkeleton } from '@/components/shared/LoadingState';
 import { PaginationControl } from '@/components/shared/Pagination';
-import { Box, Laptop, DoorOpen, Plus, MoreVertical, CheckCircle2, XCircle } from 'lucide-react';
+import { Box, Laptop, DoorOpen, Plus, MoreVertical, CheckCircle2, XCircle, Pencil } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -48,7 +49,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -58,7 +59,69 @@ const resourceSchema = z.object({
   description: z.string().optional(),
 });
 
-function ResourceFormDialog({ children }) {
+const TYPE_OPTIONS = [
+  { value: 'ROOM', label: 'Room' },
+  { value: 'EQUIPMENT', label: 'Equipment' },
+  { value: 'VEHICLE', label: 'Vehicle' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+function ResourceFormFields({ form }) {
+  return (
+    <>
+      <FormField
+        control={form.control}
+        name="name"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Resource Name</FormLabel>
+            <FormControl>
+              <Input placeholder="Conference Room A" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="type"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Type</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {TYPE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="description"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description (Optional)</FormLabel>
+            <FormControl>
+              <Textarea placeholder="Details about this resource..." {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </>
+  );
+}
+
+function CreateResourceDialog({ children }) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState(null);
@@ -74,33 +137,22 @@ function ResourceFormDialog({ children }) {
       queryClient.invalidateQueries({ queryKey: ['resources'] });
       setOpen(false);
       form.reset();
+      setServerError(null);
       toast('Resource created successfully');
     },
     onError: (err) => {
-      if (err.fields) {
-        setFormErrors(err.fields, form);
-      } else {
-        setServerError(getErrorMessage(err.code));
-      }
-    }
+      if (err.fields) setFormErrors(err.fields, form);
+      else setServerError(getErrorMessage(err.code));
+    },
   });
 
-  const onSubmit = (values) => {
-    setServerError(null);
-    createResource.mutate(values);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setServerError(null); form.reset(); } }}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a Resource</DialogTitle>
-          <DialogDescription>
-            Create a new room or equipment for your organization to use.
-          </DialogDescription>
+          <DialogDescription>Create a new resource for your organization.</DialogDescription>
         </DialogHeader>
 
         {serverError && (
@@ -110,57 +162,9 @@ function ResourceFormDialog({ children }) {
         )}
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Resource Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Conference Room A" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="ROOM">Room</SelectItem>
-                      <SelectItem value="EQUIPMENT">Equipment</SelectItem>
-                      <SelectItem value="VEHICLE">Vehicle</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Details about this resource..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex justify-end pt-4">
+          <form onSubmit={form.handleSubmit((v) => { setServerError(null); createResource.mutate(v); })} className="space-y-4">
+            <ResourceFormFields form={form} />
+            <div className="flex justify-end pt-2">
               <Button type="submit" disabled={createResource.isPending}>
                 {createResource.isPending ? 'Saving...' : 'Create Resource'}
               </Button>
@@ -172,15 +176,75 @@ function ResourceFormDialog({ children }) {
   );
 }
 
+function EditResourceDialog({ resource, open, onOpenChange }) {
+  const queryClient = useQueryClient();
+  const [serverError, setServerError] = useState(null);
+
+  const form = useForm({
+    resolver: zodResolver(resourceSchema),
+    defaultValues: {
+      name: resource.name,
+      type: resource.type,
+      description: resource.description ?? '',
+    },
+  });
+
+  const updateResource = useMutation({
+    mutationFn: (data) => apiClient(`/api/v1/resources/${resource.id}`, { method: 'PATCH', body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+      queryClient.invalidateQueries({ queryKey: ['resource', resource.id] });
+      setServerError(null);
+      onOpenChange(false);
+      toast('Resource updated');
+    },
+    onError: (err) => {
+      if (err.fields) setFormErrors(err.fields, form);
+      else setServerError(getErrorMessage(err.code));
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) setServerError(null); onOpenChange(o); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Resource</DialogTitle>
+          <DialogDescription>Update the details for this resource.</DialogDescription>
+        </DialogHeader>
+
+        {serverError && (
+          <div className="p-3 bg-destructive/15 text-destructive text-sm rounded-md font-medium">
+            {serverError}
+          </div>
+        )}
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((v) => { setServerError(null); updateResource.mutate(v); })} className="space-y-4">
+            <ResourceFormFields form={form} />
+            <div className="flex justify-end pt-2">
+              <Button type="submit" disabled={updateResource.isPending}>
+                {updateResource.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ResourceCard({ resource, isAdmin }) {
   const queryClient = useQueryClient();
+  const [editOpen, setEditOpen] = useState(false);
 
   const toggleStatus = useMutation({
-    mutationFn: () => apiClient(`/api/v1/resources/${resource.id}/${resource.isActive ? 'deactivate' : 'reactivate'}`),
+    mutationFn: () =>
+      apiClient(`/api/v1/resources/${resource.id}/${resource.isActive ? 'deactivate' : 'reactivate'}`, { method: 'POST' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resources'] });
       toast(resource.isActive ? 'Resource deactivated' : 'Resource reactivated');
-    }
+    },
+    onError: (err) => toast.error(getErrorMessage(err.code)),
   });
 
   const getIcon = (type) => {
@@ -192,67 +256,78 @@ function ResourceCard({ resource, isAdmin }) {
   };
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-all hover:border-primary/50 bg-background/50 backdrop-blur border-border/50">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
-            {getIcon(resource.type)}
+    <>
+      <Card className="flex flex-col overflow-hidden transition-all hover:border-primary/50 bg-background/50 backdrop-blur border-border/50">
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
+              {getIcon(resource.type)}
+            </div>
+            <div>
+              <Link to={`/dashboard/resources/${resource.id}`} className="hover:underline">
+                <CardTitle className="text-base font-semibold">{resource.name}</CardTitle>
+              </Link>
+              <CardDescription className="text-xs uppercase tracking-wider font-medium mt-1">
+                {resource.type}
+              </CardDescription>
+            </div>
           </div>
-          <div>
-            <Link to={`/dashboard/resources/${resource.id}`} className="hover:underline">
-              <CardTitle className="text-base font-semibold">{resource.name}</CardTitle>
-            </Link>
-            <CardDescription className="text-xs uppercase tracking-wider font-medium mt-1">
-              {resource.type}
-            </CardDescription>
-          </div>
-        </div>
-        
-        {isAdmin && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem 
-                onClick={() => toggleStatus.mutate()}
-                className={resource.isActive ? "text-destructive focus:text-destructive" : ""}
-              >
-                {resource.isActive ? 'Deactivate' : 'Reactivate'}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </CardHeader>
-      
-      <CardContent className="flex-grow pt-4">
-        {resource.description ? (
-          <p className="text-sm text-muted-foreground line-clamp-3">
-            {resource.description}
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground/50 italic">
-            No description provided.
-          </p>
-        )}
-      </CardContent>
-      
-      <CardFooter className="pt-4 border-t border-border/30 bg-muted/20 flex justify-between items-center">
-        <Badge variant={resource.isActive ? "default" : "secondary"} className="font-medium shadow-none">
-          {resource.isActive ? (
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Active</span>
-          ) : (
-            <span className="flex items-center gap-1.5 text-muted-foreground"><XCircle className="w-3.5 h-3.5" /> Inactive</span>
+
+          {isAdmin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                  <Pencil className="h-3.5 w-3.5 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => toggleStatus.mutate()}
+                  className={resource.isActive ? 'text-destructive focus:text-destructive' : ''}
+                >
+                  {resource.isActive ? 'Deactivate' : 'Reactivate'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-        </Badge>
-        <span className="text-xs text-muted-foreground font-medium">
-          Added {new Date(resource.createdAt).toLocaleDateString()}
-        </span>
-      </CardFooter>
-    </Card>
+        </CardHeader>
+
+        <CardContent className="flex-grow pt-4">
+          {resource.description ? (
+            <p className="text-sm text-muted-foreground line-clamp-3">{resource.description}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground/50 italic">No description provided.</p>
+          )}
+        </CardContent>
+
+        <CardFooter className="pt-4 border-t border-border/30 bg-muted/20 flex justify-between items-center">
+          <Badge variant={resource.isActive ? 'default' : 'secondary'} className="font-medium shadow-none">
+            {resource.isActive ? (
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Active</span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-muted-foreground"><XCircle className="w-3.5 h-3.5" /> Inactive</span>
+            )}
+          </Badge>
+          <span className="text-xs text-muted-foreground font-medium">
+            Added {new Date(resource.createdAt).toLocaleDateString()}
+          </span>
+        </CardFooter>
+      </Card>
+
+      {isAdmin && (
+        <EditResourceDialog
+          resource={resource}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
+    </>
   );
 }
 
@@ -271,36 +346,32 @@ export default function ResourcesPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Resources</h1>
-          <p className="text-muted-foreground mt-1">
-            Browse and manage your organization's assets
-          </p>
+          <p className="text-muted-foreground mt-1">Browse and manage your organization's assets</p>
         </div>
         {isAdmin && (
-          <ResourceFormDialog>
+          <CreateResourceDialog>
             <Button className="gap-2 shadow-lg shadow-primary/20">
               <Plus className="h-4 w-4" /> Add Resource
             </Button>
-          </ResourceFormDialog>
+          </CreateResourceDialog>
         )}
       </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
+          <CardSkeleton /><CardSkeleton /><CardSkeleton />
         </div>
       ) : error ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : data?.data?.length === 0 ? (
-        <EmptyState 
+        <EmptyState
           icon={Box}
-          title="No resources found" 
-          description={isAdmin ? "Create your first resource to get started." : "Your organization hasn't added any resources yet."}
+          title="No resources found"
+          description={isAdmin ? 'Create your first resource to get started.' : "Your organization hasn't added any resources yet."}
           action={isAdmin ? (
-            <ResourceFormDialog>
+            <CreateResourceDialog>
               <Button variant="outline" className="mt-4">Create Resource</Button>
-            </ResourceFormDialog>
+            </CreateResourceDialog>
           ) : undefined}
         />
       ) : (
@@ -310,9 +381,8 @@ export default function ResourcesPage() {
               <ResourceCard key={resource.id} resource={resource} isAdmin={isAdmin} />
             ))}
           </div>
-          
           {data.meta.totalPages > 1 && (
-            <PaginationControl 
+            <PaginationControl
               currentPage={data.meta.page}
               totalPages={data.meta.totalPages}
               onPageChange={setPage}

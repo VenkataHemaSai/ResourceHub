@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import prisma from '../../utils/prisma.js';
 import { hashPassword } from '../../utils/auth.js';
-import { ConflictError } from '../../utils/errors.js';
+import { ConflictError, NotFoundError } from '../../utils/errors.js';
 
 export const createUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -43,6 +43,24 @@ export async function createUser(req, res, next) {
     } else {
       next(err);
     }
+  }
+}
+
+export async function getUser(req, res, next) {
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        id: req.params.id,
+        organizationId: req.user.organizationId,
+      },
+    });
+
+    if (!user) throw new NotFoundError('User not found');
+
+    const { passwordHash: _, ...safeUser } = user;
+    res.json(safeUser);
+  } catch (err) {
+    next(err);
   }
 }
 

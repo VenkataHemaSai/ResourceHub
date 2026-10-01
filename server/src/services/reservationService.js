@@ -26,7 +26,7 @@ export const reservationService = {
       },
     });
 
-    if (overlap) throw new ConflictError('SLOT_TAKEN');
+    if (overlap) throw new ConflictError('This time slot is already booked', 'SLOT_TAKEN');
 
     try {
       return await prisma.reservation.create({
@@ -49,7 +49,7 @@ export const reservationService = {
         (error.code === 'P2004' || error.code === 'P2010') &&
         error.message.includes('exclude_overlapping_reservations')
       ) {
-        throw new ConflictError('SLOT_TAKEN');
+        throw new ConflictError('This time slot is already booked', 'SLOT_TAKEN');
       }
       throw error;
     }
