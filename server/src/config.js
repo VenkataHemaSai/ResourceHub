@@ -6,7 +6,8 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().url(),
   JWT_SECRET: z.string().min(32),
-  JWT_EXPIRES_IN: z.coerce.number().int().positive().default(259200), // 3 days
+  JWT_EXPIRES_IN: z.coerce.number().int().positive().default(259200),
+  CORS_ORIGIN: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,6 +8,7 @@ import { apiClient } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { getErrorMessage } from '@/api/errorMessages';
 import { setFormErrors } from '@/api/form';
+import { formatOrgDate } from '@/api/dates';
 
 import { CardSkeleton } from '@/components/shared/LoadingState';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -196,19 +198,18 @@ function BookResourceDialog({ children, resources = [] }) {
   );
 }
 
-function ReservationCard({ reservation }) {
+function ReservationCard({ reservation, timezone }) {
   const queryClient = useQueryClient();
+  const tz = timezone || 'UTC';
 
   const cancelStatus = useMutation({
     mutationFn: () => apiClient(`/api/v1/reservations/${reservation.id}/cancel`, { method: 'POST' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations', 'mine'] });
       toast('Reservation cancelled');
-    }
+    },
   });
 
-  const start = new Date(reservation.startTime);
-  const end = new Date(reservation.endTime);
   const isCancelled = reservation.status === 'CANCELLED';
 
   return (
@@ -221,40 +222,40 @@ function ReservationCard({ reservation }) {
               {reservation.resource.type}
             </CardDescription>
           </div>
-          <Badge variant={isCancelled ? "secondary" : "default"}>
+          <Badge variant={isCancelled ? 'secondary' : 'default'}>
             {reservation.status}
           </Badge>
         </div>
       </CardHeader>
-      
+
       <CardContent className="flex-grow pt-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
           <Calendar className="w-4 h-4" />
-          <span>{start.toLocaleDateString()}</span>
+          <span>{formatOrgDate(reservation.startTime, tz, 'EEE, MMM d, yyyy')}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
           <Clock className="w-4 h-4" />
           <span>
-            {start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            {formatOrgDate(reservation.startTime, tz, 'h:mm a')} – {formatOrgDate(reservation.endTime, tz, 'h:mm a')}
           </span>
         </div>
         {reservation.notes && (
           <p className="mt-3 text-sm italic border-l-2 border-primary/50 pl-2">
-            "{reservation.notes}"
+            {reservation.notes}
           </p>
         )}
       </CardContent>
-      
+
       {!isCancelled && (
         <CardFooter className="pt-2 border-t border-border/30 bg-muted/20">
-          <Button 
-            variant="destructive" 
-            size="sm" 
-            className="w-full text-xs" 
+          <Button
+            variant="destructive"
+            size="sm"
+            className="w-full text-xs"
             onClick={() => cancelStatus.mutate()}
             disabled={cancelStatus.isPending}
           >
-            Cancel Booking
+            {cancelStatus.isPending ? 'Cancelling...' : 'Cancel Booking'}
           </Button>
         </CardFooter>
       )}
@@ -263,21 +264,25 @@ function ReservationCard({ reservation }) {
 }
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, organization } = useAuth();
+  const timezone = organization?.timezone || 'UTC';
 
   const { data: resData, isLoading: resLoading } = useQuery({
     queryKey: ['reservations', 'mine'],
     queryFn: () => apiClient('/api/v1/reservations/mine'),
-    enabled: !!user?.id
+    enabled: !!user?.id,
   });
 
-  // Fetch active resources for the booking modal
   const { data: resourceData } = useQuery({
     queryKey: ['resources', 'active'],
     queryFn: () => apiClient('/api/v1/resources?isActive=true&limit=100'),
   });
 
-  const reservations = resData?.data || [];
+  const now = new Date();
+  const upcoming = (resData?.data || [])
+    .filter((r) => r.status === 'CONFIRMED' && new Date(r.endTime) >= now)
+    .slice(0, 3);
+
   const resources = resourceData?.data || [];
 
   return (
@@ -286,7 +291,7 @@ export default function HomePage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Welcome back, {user?.name}. Here is your schedule.
+            Welcome back, {user?.name}.
           </p>
         </div>
         <BookResourceDialog resources={resources}>
@@ -297,17 +302,22 @@ export default function HomePage() {
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Your Bookings</h2>
-        
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Upcoming Bookings</h2>
+          <Link to="/dashboard/reservations" className="text-sm text-primary hover:underline">
+            View all
+          </Link>
+        </div>
+
         {resLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <CardSkeleton />
             <CardSkeleton />
           </div>
-        ) : reservations.length === 0 ? (
-          <EmptyState 
+        ) : upcoming.length === 0 ? (
+          <EmptyState
             icon={Calendar}
-            title="No upcoming bookings" 
+            title="No upcoming bookings"
             description="You don't have any resources booked right now."
             action={
               <BookResourceDialog resources={resources}>
@@ -317,8 +327,8 @@ export default function HomePage() {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {reservations.map(res => (
-              <ReservationCard key={res.id} reservation={res} />
+            {upcoming.map((res) => (
+              <ReservationCard key={res.id} reservation={res} timezone={timezone} />
             ))}
           </div>
         )}

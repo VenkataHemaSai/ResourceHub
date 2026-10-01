@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
@@ -19,6 +19,7 @@ import { CardSkeleton } from '@/components/shared/LoadingState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -39,13 +40,7 @@ import { toast } from 'sonner';
 
 const locales = { 'en-US': enUS };
 
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
+const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 const bookingSchema = z.object({
   startTime: z.string().min(1, 'Start time is required'),
@@ -60,7 +55,82 @@ function toLocalDatetimeString(isoString) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function BookingDialog({ open, onOpenChange, resourceId, prefillStart, prefillEnd, onBooked }) {
+function computeFreeSlots(availability) {
+  if (!availability) return [];
+  const { rules, reservations, date } = availability;
+  const [openH, openM] = rules.openTime.split(':').map(Number);
+  const [closeH, closeM] = rules.closeTime.split(':').map(Number);
+  const minMs = rules.minDurationMinutes * 60 * 1000;
+  const maxMs = rules.maxDurationMinutes * 60 * 1000;
+
+  const dayBase = new Date(date + 'T00:00:00Z');
+  let cursor = new Date(dayBase.getTime() + (openH * 60 + openM) * 60 * 1000);
+  const dayClose = new Date(dayBase.getTime() + (closeH * 60 + closeM) * 60 * 1000);
+
+  const booked = reservations
+    .map((r) => ({ start: new Date(r.startTime), end: new Date(r.endTime) }))
+    .sort((a, b) => a.start - b.start);
+
+  const slots = [];
+  for (const block of booked) {
+    if (cursor < block.start) {
+      const gapMs = block.start - cursor;
+      if (gapMs >= minMs) {
+        const slotEnd = new Date(Math.min(cursor.getTime() + Math.min(gapMs, maxMs), block.start.getTime()));
+        slots.push({ start: new Date(cursor), end: slotEnd });
+      }
+    }
+    if (block.end > cursor) cursor = new Date(block.end);
+  }
+
+  if (cursor < dayClose) {
+    const gapMs = dayClose - cursor;
+    if (gapMs >= minMs) {
+      const slotEnd = new Date(Math.min(cursor.getTime() + Math.min(gapMs, maxMs), dayClose.getTime()));
+      slots.push({ start: new Date(cursor), end: slotEnd });
+    }
+  }
+
+  return slots;
+}
+
+function AvailableSlots({ resourceId, selectedDate, onSelectSlot }) {
+  const dateStr = selectedDate ? selectedDate.slice(0, 10) : null;
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['availability', resourceId, dateStr],
+    queryFn: () => apiClient(`/api/v1/resources/${resourceId}/availability?date=${dateStr}`),
+    enabled: !!dateStr,
+  });
+
+  const slots = useMemo(() => computeFreeSlots(data), [data]);
+
+  if (!dateStr) return null;
+  if (isLoading) return <p className="text-xs text-muted-foreground">Checking availability…</p>;
+  if (!slots.length) return <p className="text-xs text-muted-foreground">No free slots found for this day.</p>;
+
+  const fmt = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground mb-2">Available slots — click to fill:</p>
+      <div className="flex flex-wrap gap-2">
+        {slots.map((slot, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onSelectSlot(slot)}
+            className="text-xs px-3 py-1 rounded-full border border-primary/40 bg-primary/5 text-primary hover:bg-primary/15 transition-colors"
+          >
+            {fmt(slot.start)} – {fmt(slot.end)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BookingDialog({ open, onOpenChange, resourceId, prefillStart, prefillEnd }) {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState(null);
 
@@ -72,6 +142,8 @@ function BookingDialog({ open, onOpenChange, resourceId, prefillStart, prefillEn
       notes: '',
     },
   });
+
+  const startTimeValue = useWatch({ control: form.control, name: 'startTime' });
 
   const createReservation = useMutation({
     mutationFn: (data) =>
@@ -85,15 +157,16 @@ function BookingDialog({ open, onOpenChange, resourceId, prefillStart, prefillEn
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations', resourceId] });
+      queryClient.invalidateQueries({ queryKey: ['availability', resourceId] });
       setServerError(null);
       form.reset();
       onOpenChange(false);
-      onBooked?.();
       toast('Reservation confirmed!');
     },
     onError: (err) => {
       if (err.code === 'SLOT_TAKEN') {
         queryClient.invalidateQueries({ queryKey: ['reservations', resourceId] });
+        queryClient.invalidateQueries({ queryKey: ['availability', resourceId] });
         setServerError(getErrorMessage('SLOT_TAKEN'));
       } else if (err.fields) {
         setFormErrors(err.fields, form);
@@ -104,11 +177,13 @@ function BookingDialog({ open, onOpenChange, resourceId, prefillStart, prefillEn
   });
 
   const handleOpenChange = (isOpen) => {
-    if (!isOpen) {
-      setServerError(null);
-      form.reset();
-    }
+    if (!isOpen) { setServerError(null); form.reset(); }
     onOpenChange(isOpen);
+  };
+
+  const handleSlotSelect = (slot) => {
+    form.setValue('startTime', toLocalDatetimeString(slot.start.toISOString()));
+    form.setValue('endTime', toLocalDatetimeString(slot.end.toISOString()));
   };
 
   return (
@@ -116,7 +191,7 @@ function BookingDialog({ open, onOpenChange, resourceId, prefillStart, prefillEn
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Book this Resource</DialogTitle>
-          <DialogDescription>Choose a start and end time for your reservation.</DialogDescription>
+          <DialogDescription>Choose a time slot for your reservation.</DialogDescription>
         </DialogHeader>
 
         {serverError && (
@@ -155,6 +230,12 @@ function BookingDialog({ open, onOpenChange, resourceId, prefillStart, prefillEn
                 )}
               />
             </div>
+
+            <AvailableSlots
+              resourceId={resourceId}
+              selectedDate={startTimeValue}
+              onSelectSlot={handleSlotSelect}
+            />
 
             <FormField
               control={form.control}
@@ -244,10 +325,15 @@ export default function ResourceDetailPage() {
           </Link>
         </Button>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <PageHeader
-            title={resource.name}
-            description={`${resource.type} • ${resource.isActive ? 'Active' : 'Inactive'}`}
-          />
+          <div className="flex items-center gap-3">
+            <PageHeader
+              title={resource.name}
+              description={resource.type}
+            />
+            <Badge variant={resource.isActive ? 'default' : 'secondary'}>
+              {resource.isActive ? 'Active' : 'Inactive'}
+            </Badge>
+          </div>
           {resource.isActive && (
             <Button
               className="gap-2 shrink-0"
@@ -293,7 +379,6 @@ export default function ResourceDetailPage() {
         resourceId={id}
         prefillStart={bookingDialog.start}
         prefillEnd={bookingDialog.end}
-        onBooked={() => {}}
       />
     </div>
   );
