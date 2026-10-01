@@ -4,6 +4,7 @@ export const ERROR_MESSAGES = {
 
   not_found: "The requested resource was not found.",
   conflict: "This action conflicts with existing data.",
+  SLOT_TAKEN: "Someone just booked this slot. Please choose a different time.",
   validation_error: "Please check the form for errors.",
 
   network_error:

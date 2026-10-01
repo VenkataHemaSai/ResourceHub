@@ -6,27 +6,18 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => apiClient('/api/v1/auth/me'),
     retry: false,
     staleTime: Infinity,
   });
 
-  useEffect(() => {
-    if (data?.user) {
-      setIsAuthenticated(true);
-    } else {
-      setIsAuthenticated(false);
-    }
-  }, [data]);
+  const isAuthenticated = !!data?.id;
 
   const handleSessionChange = () => {
     // CRITICAL: Clear all cached data so org A's data doesn't leak into org B's session
-    queryClient.clear();
-    refetch();
+    queryClient.resetQueries();
   };
 
   const loginMutation = useMutation({
@@ -52,7 +43,7 @@ export function AuthProvider({ children }) {
   });
 
   const value = {
-    user: data?.user || null,
+    user: data || null,
     organization: data?.organization || null,
     isLoading,
     isAuthenticated,

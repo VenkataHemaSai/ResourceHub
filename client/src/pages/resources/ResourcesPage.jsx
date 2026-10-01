@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -198,7 +199,9 @@ function ResourceCard({ resource, isAdmin }) {
             {getIcon(resource.type)}
           </div>
           <div>
-            <CardTitle className="text-base font-semibold">{resource.name}</CardTitle>
+            <Link to={`/dashboard/resources/${resource.id}`} className="hover:underline">
+              <CardTitle className="text-base font-semibold">{resource.name}</CardTitle>
+            </Link>
             <CardDescription className="text-xs uppercase tracking-wider font-medium mt-1">
               {resource.type}
             </CardDescription>

@@ -9,9 +9,13 @@ import {
   updateResource,
   deactivateResource,
   reactivateResource,
+  listResourceReservations,
   listQuerySchema,
   createResourceSchema,
   updateResourceSchema,
+  reservationRangeSchema,
+  getAvailability,
+  availabilityQuerySchema,
 } from '../../controllers/resources/resourceController.js';
 
 const router = Router();
@@ -20,6 +24,8 @@ router.use(requireAuth);
 
 router.get('/', validate(listQuerySchema, 'query'), listResources);
 router.get('/:id', getResource);
+router.get('/:id/reservations', validate(reservationRangeSchema, 'query'), listResourceReservations);
+router.get('/:id/availability', validate(availabilityQuerySchema, 'query'), getAvailability);
 
 router.use(requireRole('ADMIN'));
 

@@ -1,126 +1,173 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/api/client';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { useAuth } from '@/context/AuthContext';
+import { formatOrgDate } from '@/api/dates';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { CardSkeleton } from '@/components/shared/LoadingState';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Calendar, Clock, BookOpen } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Calendar, Clock, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
-function ReservationCard({ reservation }) {
-  const queryClient = useQueryClient();
-
-  const cancelMutation = useMutation({
-    mutationFn: () => apiClient(`/api/v1/reservations/${reservation.id}/cancel`, { method: 'POST' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reservations'] });
-      toast('Reservation cancelled');
-    },
-  });
-
-  const isConfirmed = reservation.status === 'CONFIRMED';
-  const start = new Date(reservation.startTime);
-  const end = new Date(reservation.endTime);
+function ReservationCard({ reservation, onCancel, cancelling, timezone }) {
+  const isCancelled = reservation.status === 'CANCELLED';
+  const tz = timezone || 'UTC';
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-all hover:border-primary/50 bg-background/50 backdrop-blur border-border/50">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-        <div>
-          <CardTitle className="text-base font-semibold">{reservation.resource?.name}</CardTitle>
-          <CardDescription className="text-xs uppercase tracking-wider font-medium mt-1">
-            {reservation.resource?.type}
-          </CardDescription>
+    <Card className={`flex flex-col border-border/50 bg-card/50 backdrop-blur ${isCancelled ? 'opacity-50' : ''}`}>
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start gap-2">
+          <div>
+            <CardTitle className="text-base">{reservation.resource.name}</CardTitle>
+            <CardDescription className="text-xs uppercase tracking-wider mt-1">
+              {reservation.resource.type}
+            </CardDescription>
+          </div>
+          <Badge variant={isCancelled ? 'secondary' : 'default'}>{reservation.status}</Badge>
         </div>
-        <Badge variant={isConfirmed ? 'default' : 'secondary'} className="font-medium shadow-none shrink-0">
-          {reservation.status}
-        </Badge>
       </CardHeader>
 
-      <CardContent className="flex-grow pt-2 space-y-2">
+      <CardContent className="flex-grow space-y-2 pt-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Calendar className="w-4 h-4 shrink-0" />
-          <span>{start.toLocaleDateString()}</span>
+          <span>{formatOrgDate(reservation.startTime, tz, 'EEE, MMM d, yyyy')}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="w-4 h-4 shrink-0" />
           <span>
-            {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            {' — '}
-            {end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {formatOrgDate(reservation.startTime, tz, 'h:mm a')}
+            {' – '}
+            {formatOrgDate(reservation.endTime, tz, 'h:mm a')}
           </span>
         </div>
         {reservation.notes && (
-          <p className="text-sm italic border-l-2 border-primary/50 pl-2 text-muted-foreground">
-            "{reservation.notes}"
+          <p className="text-sm border-l-2 border-primary/40 pl-3 italic text-muted-foreground">
+            {reservation.notes}
           </p>
         )}
       </CardContent>
 
-      {isConfirmed && (
-        <CardFooter className="pt-4 border-t border-border/30 bg-muted/20">
-          <Button
-            variant="destructive"
-            size="sm"
-            className="w-full text-xs"
-            onClick={() => cancelMutation.mutate()}
-            disabled={cancelMutation.isPending}
+      {!isCancelled && (
+        <CardFooter className="pt-2 border-t border-border/30">
+          <ConfirmDialog
+            title="Cancel this booking?"
+            description="This will free up the slot for others. This cannot be undone."
+            onConfirm={onCancel}
           >
-            {cancelMutation.isPending ? 'Cancelling...' : 'Cancel Reservation'}
-          </Button>
+            <Button variant="destructive" size="sm" className="w-full text-xs" disabled={cancelling}>
+              {cancelling ? 'Cancelling...' : 'Cancel Booking'}
+            </Button>
+          </ConfirmDialog>
         </CardFooter>
       )}
     </Card>
   );
 }
 
-export default function ReservationsPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+function ReservationGrid({ reservations, isLoading, error, refetch, timezone }) {
+  const queryClient = useQueryClient();
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['reservations', { scope: isAdmin ? 'all' : user?.id }],
-    queryFn: () =>
-      isAdmin
-        ? apiClient('/api/v1/reservations')
-        : apiClient(`/api/v1/reservations?userId=${user.id}`),
-    enabled: !!user?.id,
+  const cancel = useMutation({
+    mutationFn: (id) => apiClient(`/api/v1/reservations/${id}/cancel`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reservations', 'mine'] });
+      toast('Booking cancelled');
+    },
+    onError: () => toast.error('Failed to cancel booking'),
   });
 
-  const reservations = data?.data ?? [];
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(3)].map((_, i) => <CardSkeleton key={i} />)}
+      </div>
+    );
+  }
+
+  if (error) return <ErrorState error={error} onRetry={refetch} />;
+
+  if (!reservations.length) {
+    return (
+      <EmptyState
+        icon={BookOpen}
+        title="No bookings here"
+        description="Nothing to show for this filter."
+      />
+    );
+  }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Reservations</h1>
-        <p className="text-muted-foreground mt-1">
-          {isAdmin ? "All reservations across your organization" : "Your upcoming and past bookings"}
-        </p>
-      </div>
-
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-        </div>
-      ) : error ? (
-        <ErrorState error={error} onRetry={refetch} />
-      ) : reservations.length === 0 ? (
-        <EmptyState
-          icon={BookOpen}
-          title="No reservations found"
-          description={isAdmin ? "No reservations have been made yet." : "You haven't booked anything yet. Head to the Dashboard to make a booking."}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {reservations.map((r) => (
+        <ReservationCard
+          key={r.id}
+          reservation={r}
+          onCancel={() => cancel.mutate(r.id)}
+          cancelling={cancel.isPending}
+          timezone={timezone}
         />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reservations.map((reservation) => (
-            <ReservationCard key={reservation.id} reservation={reservation} />
-          ))}
-        </div>
-      )}
+      ))}
+    </div>
+  );
+}
+
+export default function ReservationsPage() {
+  const { user, organization } = useAuth();
+  const timezone = organization?.timezone || 'UTC';
+
+  const endpoint = user?.role === 'ADMIN'
+    ? '/api/v1/reservations'
+    : '/api/v1/reservations/mine';
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['reservations', 'mine'],
+    queryFn: () => apiClient(endpoint),
+    enabled: !!user,
+  });
+
+  const all = data?.data ?? [];
+  const upcoming = all.filter((r) => r.status === 'CONFIRMED' && new Date(r.endTime) >= new Date());
+  const past = all.filter((r) => r.status !== 'CONFIRMED' || new Date(r.endTime) < new Date());
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <PageHeader
+        title="My Reservations"
+        description="Track and manage all your bookings."
+      />
+
+      <Tabs defaultValue="upcoming">
+        <TabsList className="mb-6">
+          <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
+          <TabsTrigger value="past">Past &amp; Cancelled ({past.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="upcoming">
+          <ReservationGrid
+            reservations={upcoming}
+            isLoading={isLoading}
+            error={error}
+            refetch={refetch}
+            timezone={timezone}
+          />
+        </TabsContent>
+
+        <TabsContent value="past">
+          <ReservationGrid
+            reservations={past}
+            isLoading={isLoading}
+            error={error}
+            refetch={refetch}
+            timezone={timezone}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

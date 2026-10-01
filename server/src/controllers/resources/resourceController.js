@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { resourceService } from '../../services/resourceService.js';
+import { reservationService } from '../../services/reservationService.js';
 import { NotFoundError } from '../../utils/errors.js';
+
+export const reservationRangeSchema = z.object({
+  from: z.string().datetime({ offset: true }).optional(),
+  to: z.string().datetime({ offset: true }).optional(),
+});
 
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -78,6 +84,34 @@ export async function reactivateResource(req, res, next) {
   try {
     const resource = await resourceService.setResourceStatus(req.user.organizationId, req.params.id, true);
     res.json(resource);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listResourceReservations(req, res, next) {
+  try {
+    const reservations = await reservationService.listForResource(
+      req.user.organizationId,
+      req.params.id,
+      req.query
+    );
+    res.json({ data: reservations });
+  } catch (err) {
+    next(err);
+  }
+}
+export const availabilityQuerySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+  timezone: z.string().default('UTC'),
+});
+
+export async function getAvailability(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { date, timezone } = req.query;
+    const availability = await resourceService.calculateAvailability(req.user.organizationId, id, date, timezone);
+    res.json(availability);
   } catch (err) {
     next(err);
   }

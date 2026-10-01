@@ -68,7 +68,6 @@ function BookResourceDialog({ children, resources = [] }) {
 
   const createReservation = useMutation({
     mutationFn: (data) => {
-      // Ensure ISO string with current timezone offset
       const start = new Date(data.startTime).toISOString();
       const end = new Date(data.endTime).toISOString();
       return apiClient('/api/v1/reservations', {
@@ -79,10 +78,14 @@ function BookResourceDialog({ children, resources = [] }) {
       queryClient.invalidateQueries({ queryKey: ['reservations'] });
       setOpen(false);
       form.reset();
+      setServerError(null);
       toast('Reservation confirmed!');
     },
     onError: (err) => {
-      if (err.fields) {
+      if (err.code === 'SLOT_TAKEN') {
+        queryClient.invalidateQueries({ queryKey: ['reservations'] });
+        setServerError(getErrorMessage('SLOT_TAKEN'));
+      } else if (err.fields) {
         setFormErrors(err.fields, form);
       } else {
         setServerError(getErrorMessage(err.code) || err.message);
@@ -96,7 +99,7 @@ function BookResourceDialog({ children, resources = [] }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) { setServerError(null); form.reset(); } }}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
@@ -197,9 +200,9 @@ function ReservationCard({ reservation }) {
   const queryClient = useQueryClient();
 
   const cancelStatus = useMutation({
-    mutationFn: () => apiClient(`/api/v1/reservations/${reservation.id}/cancel`),
+    mutationFn: () => apiClient(`/api/v1/reservations/${reservation.id}/cancel`, { method: 'POST' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['reservations', 'mine'] });
       toast('Reservation cancelled');
     }
   });
@@ -262,10 +265,9 @@ function ReservationCard({ reservation }) {
 export default function HomePage() {
   const { user } = useAuth();
 
-  // Fetch user's upcoming reservations
   const { data: resData, isLoading: resLoading } = useQuery({
-    queryKey: ['reservations', { userId: user?.id }],
-    queryFn: () => apiClient(`/api/v1/reservations?userId=${user.id}`),
+    queryKey: ['reservations', 'mine'],
+    queryFn: () => apiClient('/api/v1/reservations/mine'),
     enabled: !!user?.id
   });
 

@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { requireAuth } from '../../middleware/requireAuth.js';
+import { requireRole } from '../../middleware/requireRole.js';
 import {
-  listReservations,
+  listMyReservations,
+  listAllReservations,
   createReservation,
   cancelReservation,
   listQuerySchema,
@@ -13,8 +15,10 @@ const router = Router();
 
 router.use(requireAuth);
 
-router.get('/', validate(listQuerySchema, 'query'), listReservations);
+router.get('/mine', validate(listQuerySchema, 'query'), listMyReservations);
 router.post('/', validate(createReservationSchema), createReservation);
 router.post('/:id/cancel', cancelReservation);
+
+router.get('/', requireRole('ADMIN'), validate(listQuerySchema, 'query'), listAllReservations);
 
 export default router;

@@ -50,6 +50,11 @@ model Resource {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  minDurationMinutes Int @default(15)
+  maxDurationMinutes Int @default(240)
+  openTime           String @default("09:00")
+  closeTime          String @default("17:00")
+
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   reservations   Reservation[]
 

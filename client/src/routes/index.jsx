@@ -8,6 +8,7 @@ import RegisterPage from "@/pages/auth/RegisterPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import TeamPage from "@/pages/team/TeamPage";
 import ResourcesPage from "@/pages/resources/ResourcesPage";
+import ResourceDetailPage from "@/pages/resources/ResourceDetailPage";
 import ReservationsPage from "@/pages/reservations/ReservationsPage";
 import { ProtectedRoute } from "@/components/shared/ProtectedRoute";
 import { RoleGate } from "@/components/shared/RoleGate";
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: "resources", element: <ResourcesPage /> },
+      { path: "resources/:id", element: <ResourceDetailPage /> },
       { path: "reservations", element: <ReservationsPage /> },
       {
         path: "team",

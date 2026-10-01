@@ -4,21 +4,35 @@ import { reservationService } from '../../services/reservationService.js';
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  resourceId: z.string().optional(),
-  userId: z.string().optional(),
-  upcomingOnly: z.enum(['true', 'false']).optional(),
+  status: z.enum(['CONFIRMED', 'CANCELLED']).optional(),
 });
 
 export const createReservationSchema = z.object({
   resourceId: z.string().uuid('Invalid resource ID'),
-  startTime: z.string().datetime({ offset: true }, 'Must be a valid ISO 8601 datetime'),
-  endTime: z.string().datetime({ offset: true }, 'Must be a valid ISO 8601 datetime'),
+  startTime: z.string().datetime({ offset: true }),
+  endTime: z.string().datetime({ offset: true }),
   notes: z.string().max(500).optional(),
 });
 
-export async function listReservations(req, res, next) {
+export async function listMyReservations(req, res, next) {
   try {
-    const result = await reservationService.listReservations(req.user.organizationId, req.query);
+    const result = await reservationService.listMine(
+      req.user.organizationId,
+      req.user.userId,
+      req.query
+    );
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listAllReservations(req, res, next) {
+  try {
+    const result = await reservationService.listReservations(
+      req.user.organizationId,
+      req.query
+    );
     res.json(result);
   } catch (err) {
     next(err);

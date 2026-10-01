@@ -126,4 +126,41 @@ export const resourceService = {
       data: { isActive },
     });
   },
+
+  /**
+   * Calculate availability for a specific day
+   */
+  async calculateAvailability(organizationId, resourceId, dateString, timezone = 'UTC') {
+    const resource = await this.getResource(organizationId, resourceId);
+
+    const startOfDay = new Date(dateString + 'T00:00:00.000Z');
+    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+    const existingReservations = await prisma.reservation.findMany({
+      where: {
+        resourceId,
+        organizationId,
+        status: 'CONFIRMED',
+        startTime: { lt: endOfDay },
+        endTime: { gt: startOfDay },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+
+    return {
+      resourceId,
+      date: dateString,
+      timezone,
+      rules: {
+        minDurationMinutes: resource.minDurationMinutes,
+        maxDurationMinutes: resource.maxDurationMinutes,
+        openTime: resource.openTime,
+        closeTime: resource.closeTime,
+      },
+      reservations: existingReservations.map(r => ({
+        startTime: r.startTime,
+        endTime: r.endTime,
+      })),
+    };
+  }
 };

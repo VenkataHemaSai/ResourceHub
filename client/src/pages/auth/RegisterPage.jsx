@@ -39,7 +39,13 @@ export default function RegisterPage() {
   const onSubmit = async (values) => {
     setServerError(null);
     try {
-      await register(values);
+      const payload = {
+        orgName: values.orgName,
+        userName: `${values.firstName} ${values.lastName}`.trim(),
+        email: values.email,
+        password: values.password
+      };
+      await register(payload);
       navigate('/dashboard', { replace: true });
     } catch (err) {
       if (err.fields) {
