@@ -1,25 +1,24 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@hookform/resolvers/zod';;
 import * as z from 'zod';
 import { apiClient } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { getErrorMessage } from '@/api/errorMessages';
 import { setFormErrors } from '@/api/form';
 
-import { PageHeader } from '@/components/shared/PageHeader';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CardSkeleton } from '@/components/shared/LoadingState';
 import { PaginationControl } from '@/components/shared/Pagination';
-import { Box, Laptop, DoorOpen, Plus, MoreVertical, CheckCircle2, XCircle, Pencil } from 'lucide-react';
+import { Box, Plus, MoreVertical, Pencil, Image as ImageIcon, Layers, Clock } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -43,81 +42,202 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
 const resourceSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   type: z.string().min(2, 'Type is required'),
   description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  quantity: z.coerce.number().int().min(1, 'Must be at least 1').default(1),
+  minDurationMinutes: z.coerce.number().int().min(5).default(15),
+  maxDurationMinutes: z.coerce.number().int().min(5).default(240),
+  openTime: z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM format').default('09:00'),
+  closeTime: z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM format').default('17:00'),
 });
 
-const TYPE_OPTIONS = [
-  { value: 'ROOM', label: 'Room' },
-  { value: 'EQUIPMENT', label: 'Equipment' },
-  { value: 'VEHICLE', label: 'Vehicle' },
-  { value: 'OTHER', label: 'Other' },
-];
+function ImageUploadField({ value, onChange }) {
+  const inputRef = useRef(null);
+
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be under 2MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div
+        className="relative w-full h-40 rounded-lg border-2 border-dashed border-border/50 overflow-hidden cursor-pointer bg-muted/20 hover:border-primary/40 transition-colors flex items-center justify-center"
+        onClick={() => inputRef.current?.click()}
+      >
+        {value ? (
+          <img src={value} alt="Preview" className="w-full h-full object-cover" />
+        ) : (
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <ImageIcon className="h-8 w-8" />
+            <span className="text-sm">Click to upload image (max 2MB)</span>
+          </div>
+        )}
+        {value && (
+          <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+            <span className="text-white text-sm font-medium">Change photo</span>
+          </div>
+        )}
+      </div>
+      {value && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive text-xs"
+          onClick={() => onChange('')}
+        >
+          Remove photo
+        </Button>
+      )}
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </div>
+  );
+}
 
 function ResourceFormFields({ form }) {
   return (
-    <>
+    <div className="space-y-4">
       <FormField
         control={form.control}
-        name="name"
+        name="imageUrl"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Resource Name</FormLabel>
+            <FormLabel>Photo</FormLabel>
             <FormControl>
-              <Input placeholder="Conference Room A" {...field} />
+              <ImageUploadField value={field.value} onChange={field.onChange} />
             </FormControl>
             <FormMessage />
           </FormItem>
         )}
       />
-      <FormField
-        control={form.control}
-        name="type"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Type</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
+
+      <div className="grid grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Resource Name</FormLabel>
               <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
+                <Input placeholder="GPU Server Node 1" {...field} />
               </FormControl>
-              <SelectContent>
-                {TYPE_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Type</FormLabel>
+              <FormControl>
+                <Input placeholder="GPU, Camera, Laptop…" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
       <FormField
         control={form.control}
         name="description"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Description (Optional)</FormLabel>
+            <FormLabel>Description</FormLabel>
             <FormControl>
-              <Textarea placeholder="Details about this resource..." {...field} />
+              <Textarea placeholder="Details about this resource…" rows={2} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
         )}
       />
-    </>
+
+      <div className="grid grid-cols-3 gap-4">
+        <FormField
+          control={form.control}
+          name="quantity"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Stock / Quantity</FormLabel>
+              <FormControl>
+                <Input type="number" min={1} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="minDurationMinutes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Min Duration (min)</FormLabel>
+              <FormControl>
+                <Input type="number" min={5} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="maxDurationMinutes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Max Duration (min)</FormLabel>
+              <FormControl>
+                <Input type="number" min={5} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="openTime"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Opens At</FormLabel>
+              <FormControl>
+                <Input type="time" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="closeTime"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Closes At</FormLabel>
+              <FormControl>
+                <Input type="time" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -128,7 +248,17 @@ function CreateResourceDialog({ children }) {
 
   const form = useForm({
     resolver: zodResolver(resourceSchema),
-    defaultValues: { name: '', type: 'ROOM', description: '' },
+    defaultValues: {
+      name: '',
+      type: '',
+      description: '',
+      imageUrl: '',
+      quantity: 1,
+      minDurationMinutes: 15,
+      maxDurationMinutes: 240,
+      openTime: '09:00',
+      closeTime: '17:00',
+    },
   });
 
   const createResource = useMutation({
@@ -142,29 +272,27 @@ function CreateResourceDialog({ children }) {
     },
     onError: (err) => {
       if (err.fields) setFormErrors(err.fields, form);
-      else setServerError(getErrorMessage(err.code));
+      else setServerError(getErrorMessage(err.code) || err.message);
     },
   });
 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setServerError(null); form.reset(); } }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add a Resource</DialogTitle>
           <DialogDescription>Create a new resource for your organization.</DialogDescription>
         </DialogHeader>
-
         {serverError && (
           <div className="p-3 bg-destructive/15 text-destructive text-sm rounded-md font-medium">
             {serverError}
           </div>
         )}
-
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((v) => { setServerError(null); createResource.mutate(v); })} className="space-y-4">
+          <form onSubmit={form.handleSubmit((v) => { setServerError(null); createResource.mutate(v); })}>
             <ResourceFormFields form={form} />
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-4">
               <Button type="submit" disabled={createResource.isPending}>
                 {createResource.isPending ? 'Saving...' : 'Create Resource'}
               </Button>
@@ -186,11 +314,18 @@ function EditResourceDialog({ resource, open, onOpenChange }) {
       name: resource.name,
       type: resource.type,
       description: resource.description ?? '',
+      imageUrl: resource.imageUrl ?? '',
+      quantity: resource.quantity ?? 1,
+      minDurationMinutes: resource.minDurationMinutes ?? 15,
+      maxDurationMinutes: resource.maxDurationMinutes ?? 240,
+      openTime: resource.openTime ?? '09:00',
+      closeTime: resource.closeTime ?? '17:00',
     },
   });
 
   const updateResource = useMutation({
-    mutationFn: (data) => apiClient(`/api/v1/resources/${resource.id}`, { method: 'PATCH', body: data }),
+    mutationFn: (data) =>
+      apiClient(`/api/v1/resources/${resource.id}`, { method: 'PATCH', body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resources'] });
       queryClient.invalidateQueries({ queryKey: ['resource', resource.id] });
@@ -200,28 +335,26 @@ function EditResourceDialog({ resource, open, onOpenChange }) {
     },
     onError: (err) => {
       if (err.fields) setFormErrors(err.fields, form);
-      else setServerError(getErrorMessage(err.code));
+      else setServerError(getErrorMessage(err.code) || err.message);
     },
   });
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) setServerError(null); onOpenChange(o); }}>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Resource</DialogTitle>
-          <DialogDescription>Update the details for this resource.</DialogDescription>
+          <DialogDescription>Update the details for {resource.name}.</DialogDescription>
         </DialogHeader>
-
         {serverError && (
           <div className="p-3 bg-destructive/15 text-destructive text-sm rounded-md font-medium">
             {serverError}
           </div>
         )}
-
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((v) => { setServerError(null); updateResource.mutate(v); })} className="space-y-4">
+          <form onSubmit={form.handleSubmit((v) => { setServerError(null); updateResource.mutate(v); })}>
             <ResourceFormFields form={form} />
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-4">
               <Button type="submit" disabled={updateResource.isPending}>
                 {updateResource.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
@@ -239,7 +372,9 @@ function ResourceCard({ resource, isAdmin }) {
 
   const toggleStatus = useMutation({
     mutationFn: () =>
-      apiClient(`/api/v1/resources/${resource.id}/${resource.isActive ? 'deactivate' : 'reactivate'}`, { method: 'POST' }),
+      apiClient(`/api/v1/resources/${resource.id}/${resource.isActive ? 'deactivate' : 'reactivate'}`, {
+        method: 'POST',
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resources'] });
       toast(resource.isActive ? 'Resource deactivated' : 'Resource reactivated');
@@ -247,85 +382,94 @@ function ResourceCard({ resource, isAdmin }) {
     onError: (err) => toast.error(getErrorMessage(err.code)),
   });
 
-  const getIcon = (type) => {
-    switch (type) {
-      case 'ROOM': return <DoorOpen className="h-5 w-5" />;
-      case 'EQUIPMENT': return <Laptop className="h-5 w-5" />;
-      default: return <Box className="h-5 w-5" />;
-    }
-  };
-
   return (
     <>
-      <Card className="flex flex-col overflow-hidden transition-all hover:border-primary/50 bg-background/50 backdrop-blur border-border/50">
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
-              {getIcon(resource.type)}
+      <div className={`group flex flex-col rounded-xl border border-border/50 bg-background/50 backdrop-blur overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 ${!resource.isActive ? 'opacity-60' : ''}`}>
+        <div className="relative h-44 bg-muted overflow-hidden">
+          {resource.imageUrl ? (
+            <img
+              src={resource.imageUrl}
+              alt={resource.name}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-primary/5">
+              <Box className="h-12 w-12 text-primary/20" />
             </div>
-            <div>
-              <Link to={`/dashboard/resources/${resource.id}`} className="hover:underline">
-                <CardTitle className="text-base font-semibold">{resource.name}</CardTitle>
-              </Link>
-              <CardDescription className="text-xs uppercase tracking-wider font-medium mt-1">
-                {resource.type}
-              </CardDescription>
-            </div>
+          )}
+
+          <div className="absolute top-3 left-3 flex gap-1.5">
+            <Badge className="text-xs font-semibold shadow-md bg-background/80 text-foreground backdrop-blur border-border/50">
+              {resource.type}
+            </Badge>
+            {!resource.isActive && (
+              <Badge variant="secondary" className="text-xs shadow-md bg-background/80 backdrop-blur">
+                Inactive
+              </Badge>
+            )}
           </div>
 
           {isAdmin && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Open menu</span>
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                  <Pencil className="h-3.5 w-3.5 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => toggleStatus.mutate()}
-                  className={resource.isActive ? 'text-destructive focus:text-destructive' : ''}
-                >
-                  {resource.isActive ? 'Deactivate' : 'Reactivate'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="absolute top-2 right-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 bg-background/70 backdrop-blur hover:bg-background"
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                    <Pencil className="h-3.5 w-3.5 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => toggleStatus.mutate()}
+                    className={resource.isActive ? 'text-destructive focus:text-destructive' : ''}
+                  >
+                    {resource.isActive ? 'Deactivate' : 'Reactivate'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
-        </CardHeader>
+        </div>
 
-        <CardContent className="flex-grow pt-4">
-          {resource.description ? (
-            <p className="text-sm text-muted-foreground line-clamp-3">{resource.description}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground/50 italic">No description provided.</p>
-          )}
-        </CardContent>
-
-        <CardFooter className="pt-4 border-t border-border/30 bg-muted/20 flex justify-between items-center">
-          <Badge variant={resource.isActive ? 'default' : 'secondary'} className="font-medium shadow-none">
-            {resource.isActive ? (
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Active</span>
+        <div className="flex flex-col flex-1 p-4 gap-3">
+          <div>
+            <h3 className="font-semibold text-base text-foreground leading-snug">{resource.name}</h3>
+            {resource.description ? (
+              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{resource.description}</p>
             ) : (
-              <span className="flex items-center gap-1.5 text-muted-foreground"><XCircle className="w-3.5 h-3.5" /> Inactive</span>
+              <p className="text-sm text-muted-foreground/40 italic mt-1">No description.</p>
             )}
-          </Badge>
-          <span className="text-xs text-muted-foreground font-medium">
-            Added {new Date(resource.createdAt).toLocaleDateString()}
-          </span>
-        </CardFooter>
-      </Card>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-auto">
+            <span className="flex items-center gap-1">
+              <Layers className="h-3.5 w-3.5" />
+              {resource.quantity} unit{resource.quantity !== 1 ? 's' : ''}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" />
+              {resource.openTime}–{resource.closeTime}
+            </span>
+          </div>
+
+          <Button asChild className="w-full mt-1" variant={resource.isActive ? 'default' : 'secondary'} disabled={!resource.isActive}>
+            <Link to={`/dashboard/resources/${resource.id}`}>
+              {resource.isActive ? 'View & Book' : 'View Details'}
+            </Link>
+          </Button>
+        </div>
+      </div>
 
       {isAdmin && (
-        <EditResourceDialog
-          resource={resource}
-          open={editOpen}
-          onOpenChange={setEditOpen}
-        />
+        <EditResourceDialog resource={resource} open={editOpen} onOpenChange={setEditOpen} />
       )}
     </>
   );
@@ -346,7 +490,7 @@ export default function ResourcesPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Resources</h1>
-          <p className="text-muted-foreground mt-1">Browse and manage your organization's assets</p>
+          <p className="text-muted-foreground mt-1">Browse and book your organization's assets</p>
         </div>
         {isAdmin && (
           <CreateResourceDialog>
@@ -367,12 +511,18 @@ export default function ResourcesPage() {
         <EmptyState
           icon={Box}
           title="No resources found"
-          description={isAdmin ? 'Create your first resource to get started.' : "Your organization hasn't added any resources yet."}
-          action={isAdmin ? (
-            <CreateResourceDialog>
-              <Button variant="outline" className="mt-4">Create Resource</Button>
-            </CreateResourceDialog>
-          ) : undefined}
+          description={
+            isAdmin
+              ? 'Create your first resource to get started.'
+              : "Your organization hasn't added any resources yet."
+          }
+          action={
+            isAdmin ? (
+              <CreateResourceDialog>
+                <Button variant="outline" className="mt-4">Create Resource</Button>
+              </CreateResourceDialog>
+            ) : undefined
+          }
         />
       ) : (
         <div className="space-y-8">

@@ -8,6 +8,11 @@ const schema = z.object({
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.coerce.number().int().positive().default(259200),
   CORS_ORIGIN: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().default('ResourceHub <no-reply@resourcehub.app>'),
 });
 
 const parsed = schema.safeParse(process.env);

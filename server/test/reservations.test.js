@@ -56,7 +56,7 @@ describe('POST /api/v1/reservations', () => {
     expect(res.body).toMatchObject({
       resourceId: resource.id,
       userId: user.id,
-      status: 'CONFIRMED',
+      status: 'PENDING_ALLOCATION',
     });
   });
 

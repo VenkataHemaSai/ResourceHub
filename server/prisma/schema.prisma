@@ -11,60 +11,69 @@ enum Role {
   MEMBER
 }
 
+enum ReservationStatus {
+  PENDING_ALLOCATION
+  ALLOCATED
+  RETURNED
+  CANCELLED
+  NO_SHOW
+}
+
 model Organization {
   id        String   @id @default(uuid())
   name      String
   slug      String   @unique
-  timezone  String   @default("UTC")
+  timezone  String   @default("Asia/Kolkata")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   users        User[]
   resources    Resource[]
   reservations Reservation[]
+  resourceBans ResourceBan[]
 }
 
 model User {
-  id             String       @id @default(uuid())
+  id             String   @id @default(uuid())
   organizationId String
   name           String
-  email          String       @unique
+  email          String   @unique
   passwordHash   String
-  role           Role         @default(MEMBER)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  role           Role     @default(MEMBER)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   reservations   Reservation[]
+  bansReceived   ResourceBan[] @relation("BannedUser")
+  bansIssued     ResourceBan[] @relation("BanningAdmin")
 
   @@index([organizationId])
 }
 
 model Resource {
-  id             String       @id @default(uuid())
+  id             String  @id @default(uuid())
   organizationId String
   name           String
   type           String
   description    String?
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  imageUrl       String?
+  quantity       Int     @default(1)
+  isActive       Boolean @default(true)
 
-  minDurationMinutes Int @default(15)
-  maxDurationMinutes Int @default(240)
+  minDurationMinutes Int    @default(15)
+  maxDurationMinutes Int    @default(240)
   openTime           String @default("09:00")
   closeTime          String @default("17:00")
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  reservations   Reservation[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  reservations Reservation[]
 
   @@unique([organizationId, name])
   @@index([organizationId, isActive])
-}
-
-enum ReservationStatus {
-  CONFIRMED
-  CANCELLED
 }
 
 model Reservation {
@@ -74,15 +83,36 @@ model Reservation {
   userId         String
   startTime      DateTime          @db.Timestamptz(3)
   endTime        DateTime          @db.Timestamptz(3)
-  status         ReservationStatus @default(CONFIRMED)
+  status         ReservationStatus @default(PENDING_ALLOCATION)
   notes          String?
+  actualEndTime  DateTime?         @db.Timestamptz(3)
+  adminNotes     String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  resource       Resource          @relation(fields: [resourceId], references: [id], onDelete: Restrict)
-  user           User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  resource     Resource     @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, userId])
   @@index([resourceId, startTime])
+  @@index([status, endTime])
+}
+
+model ResourceBan {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String
+  resourceType   String
+  reason         String
+  bannedUntil    DateTime
+  bannedById     String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("BannedUser", fields: [userId], references: [id], onDelete: Restrict)
+  bannedBy     User         @relation("BanningAdmin", fields: [bannedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId, resourceType])
+  @@index([organizationId, userId])
 }

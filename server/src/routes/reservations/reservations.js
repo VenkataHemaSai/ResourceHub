@@ -7,8 +7,12 @@ import {
   listAllReservations,
   createReservation,
   cancelReservation,
-  listQuerySchema,
+  allocateReservation,
+  returnReservation,
+  markNoShow,
   createReservationSchema,
+  listQuerySchema,
+  returnReservationSchema,
 } from '../../controllers/reservations/reservationController.js';
 
 const router = Router();
@@ -19,6 +23,11 @@ router.get('/mine', validate(listQuerySchema, 'query'), listMyReservations);
 router.post('/', validate(createReservationSchema), createReservation);
 router.post('/:id/cancel', cancelReservation);
 
-router.get('/', requireRole('ADMIN'), validate(listQuerySchema, 'query'), listAllReservations);
+router.use(requireRole('ADMIN'));
+
+router.get('/', validate(listQuerySchema, 'query'), listAllReservations);
+router.post('/:id/allocate', allocateReservation);
+router.post('/:id/return', validate(returnReservationSchema), returnReservation);
+router.post('/:id/no-show', markNoShow);
 
 export default router;

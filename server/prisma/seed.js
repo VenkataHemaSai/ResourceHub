@@ -4,35 +4,35 @@ import bcrypt from 'bcrypt';
 async function main() {
   console.log('Seeding database...');
 
-  // 1. Create Organization
   const org = await prisma.organization.upsert({
-    where: { slug: 'acme-corp' },
+    where: { slug: 'iiit-sri-city' },
     update: {},
     create: {
-      name: 'Acme Corporation',
-      slug: 'acme-corp',
+      name: 'IIIT Sri City',
+      slug: 'iiit-sri-city',
+      timezone: 'Asia/Kolkata',
     },
   });
 
-  // 2. Create Users (1 Admin, 3 Members)
-  const defaultPassword = await bcrypt.hash('password123', 10);
-  
+  const password = await bcrypt.hash('hemasai09', 10);
+
   const users = [
-    { email: 'admin@acme.com', name: 'Admin User', role: 'ADMIN' },
-    { email: 'john@acme.com', name: 'John Doe', role: 'MEMBER' },
-    { email: 'sarah@acme.com', name: 'Sarah Smith', role: 'MEMBER' },
-    { email: 'mike@acme.com', name: 'Mike Johnson', role: 'MEMBER' },
+    { email: 'venkatahemasai.b23@iiits.in', name: 'Venkata Hema Sai', role: 'ADMIN' },
+    { email: 'arjun.b23@iiits.in', name: 'Arjun Reddy', role: 'MEMBER' },
+    { email: 'priya.b23@iiits.in', name: 'Priya Sharma', role: 'MEMBER' },
+    { email: 'kiran.b23@iiits.in', name: 'Kiran Kumar', role: 'MEMBER' },
+    { email: 'neha.b23@iiits.in', name: 'Neha Patel', role: 'MEMBER' },
   ];
 
   const createdUsers = [];
   for (const u of users) {
     const user = await prisma.user.upsert({
       where: { email: u.email },
-      update: { passwordHash: defaultPassword, role: u.role },
+      update: { passwordHash: password, role: u.role },
       create: {
         email: u.email,
         name: u.name,
-        passwordHash: defaultPassword,
+        passwordHash: password,
         role: u.role,
         organizationId: org.id,
       },
@@ -40,97 +40,122 @@ async function main() {
     createdUsers.push(user);
   }
 
-  // 3. Create Resources
   const resources = [
-    { name: 'Conference Room A', type: 'ROOM', description: 'Large room with a projector and whiteboard.', isActive: true },
-    { name: 'Conference Room B', type: 'ROOM', description: 'Small room for 1-on-1 meetings.', isActive: true },
-    { name: 'MacBook Pro 16"', type: 'EQUIPMENT', description: 'M3 Max, 64GB RAM.', isActive: true },
-    { name: 'Company Tesla', type: 'VEHICLE', description: 'Model 3 Long Range.', isActive: true },
-    { name: 'Broken Projector', type: 'EQUIPMENT', description: 'Awaiting repairs.', isActive: false },
+    {
+      name: 'GPU Server — Node 1',
+      type: 'GPU',
+      description: 'NVIDIA A100 80GB. Available for deep learning and compute-intensive tasks.',
+      quantity: 3,
+      minDurationMinutes: 30,
+      maxDurationMinutes: 480,
+      openTime: '08:00',
+      closeTime: '20:00',
+    },
+    {
+      name: 'DSLR Camera Kit',
+      type: 'Camera',
+      description: 'Canon EOS R6 with 24-105mm lens, tripod, and SD cards included.',
+      quantity: 2,
+      minDurationMinutes: 60,
+      maxDurationMinutes: 360,
+      openTime: '09:00',
+      closeTime: '18:00',
+    },
+    {
+      name: 'MacBook Pro 16"',
+      type: 'Laptop',
+      description: 'M3 Max, 64 GB RAM, 1 TB SSD. For presentations and development.',
+      quantity: 4,
+      minDurationMinutes: 30,
+      maxDurationMinutes: 480,
+      openTime: '08:00',
+      closeTime: '20:00',
+    },
+    {
+      name: 'Seminar Hall A',
+      type: 'Room',
+      description: 'Capacity 120. Full A/V setup, projector, and air conditioning.',
+      quantity: 1,
+      minDurationMinutes: 60,
+      maxDurationMinutes: 240,
+      openTime: '09:00',
+      closeTime: '18:00',
+    },
+    {
+      name: 'VR Headset',
+      type: 'VR',
+      description: 'Meta Quest 3. Includes controllers and charging dock.',
+      quantity: 2,
+      minDurationMinutes: 30,
+      maxDurationMinutes: 120,
+      openTime: '10:00',
+      closeTime: '17:00',
+    },
   ];
 
   const createdResources = [];
   for (const res of resources) {
     const resource = await prisma.resource.upsert({
-      where: {
-        organizationId_name: {
-          organizationId: org.id,
-          name: res.name,
-        },
-      },
+      where: { organizationId_name: { organizationId: org.id, name: res.name } },
       update: {},
-      create: {
-        ...res,
-        organizationId: org.id,
-      },
+      create: { ...res, organizationId: org.id },
     });
     createdResources.push(resource);
   }
 
-  // 4. Create Fake Reservations for Calendar
-  // Delete existing seeded reservations first to avoid overlap conflicts on re-runs
   await prisma.reservation.deleteMany({
-    where: { notes: { startsWith: 'Seeded:' } }
+    where: { notes: { startsWith: 'Seeded:' } },
   });
 
-  const today = new Date();
-  today.setHours(10, 0, 0, 0); // Start at 10 AM today
+  const base = new Date();
+  base.setMinutes(0, 0, 0);
 
-  const reservations = [
+  const tomorrow = new Date(base);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(10, 0, 0, 0);
+
+  const seedReservations = [
     {
-      resourceId: createdResources[0].id, // Conf Room A
-      userId: createdUsers[1].id, // John
-      startTime: new Date(today), // 10:00 AM
-      endTime: new Date(today.getTime() + 60 * 60 * 1000), // 11:00 AM
-      notes: 'Seeded: Team Sync',
-      status: 'CONFIRMED'
+      resourceId: createdResources[0].id,
+      userId: createdUsers[1].id,
+      startTime: new Date(tomorrow),
+      endTime: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
+      status: 'PENDING_ALLOCATION',
+      notes: 'Seeded: Training run for final year project',
     },
     {
-      resourceId: createdResources[0].id, // Conf Room A
-      userId: createdUsers[2].id, // Sarah
-      startTime: new Date(today.getTime() + 2 * 60 * 60 * 1000), // 12:00 PM
-      endTime: new Date(today.getTime() + 3.5 * 60 * 60 * 1000), // 1:30 PM
-      notes: 'Seeded: Client Pitch',
-      status: 'CONFIRMED'
+      resourceId: createdResources[1].id,
+      userId: createdUsers[2].id,
+      startTime: new Date(tomorrow.getTime() + 1 * 60 * 60 * 1000),
+      endTime: new Date(tomorrow.getTime() + 3 * 60 * 60 * 1000),
+      status: 'PENDING_ALLOCATION',
+      notes: 'Seeded: Photoshoot for fest poster',
     },
     {
-      resourceId: createdResources[1].id, // Conf Room B
-      userId: createdUsers[3].id, // Mike
-      startTime: new Date(today.getTime() - 24 * 60 * 60 * 1000), // Yesterday 10 AM
-      endTime: new Date(today.getTime() - 23 * 60 * 60 * 1000), // Yesterday 11 AM
-      notes: 'Seeded: 1-on-1',
-      status: 'CONFIRMED'
+      resourceId: createdResources[2].id,
+      userId: createdUsers[3].id,
+      startTime: new Date(base.getTime() - 3 * 60 * 60 * 1000),
+      endTime: new Date(base.getTime() - 1 * 60 * 60 * 1000),
+      status: 'RETURNED',
+      notes: 'Seeded: Internship presentation prep',
+      actualEndTime: new Date(base.getTime() - 55 * 60 * 1000),
     },
-    {
-      resourceId: createdResources[2].id, // MacBook
-      userId: createdUsers[1].id, // John
-      startTime: new Date(today.getTime() + 24 * 60 * 60 * 1000), // Tomorrow 10 AM
-      endTime: new Date(today.getTime() + 48 * 60 * 60 * 1000), // Day after tomorrow 10 AM
-      notes: 'Seeded: Dev Conference Trip',
-      status: 'CONFIRMED'
-    }
   ];
 
-  for (const r of reservations) {
+  for (const r of seedReservations) {
     try {
-      await prisma.reservation.create({
-        data: {
-          ...r,
-          organizationId: org.id
-        }
-      });
-    } catch (err) {
-      console.log(`Skipped seeding reservation for resource ${r.resourceId} (possible overlap)`);
+      await prisma.reservation.create({ data: { ...r, organizationId: org.id } });
+    } catch {
+      console.log(`Skipped duplicate seed reservation`);
     }
   }
 
-  console.log('Seed completed successfully!');
+  console.log('\nSeed completed successfully!');
   console.log('--------------------------------------------------');
-  console.log('Test Accounts created:');
-  console.log('1. Admin: admin@acme.com / password123');
-  console.log('2. Member: john@acme.com / password123');
-  console.log('3. Member: sarah@acme.com / password123');
-  console.log('4. Member: mike@acme.com / password123');
+  console.log('Organization : IIIT Sri City');
+  console.log('Admin        : venkatahemasai.b23@iiits.in / hemasai09');
+  console.log('Members      : arjun / priya / kiran / neha @iiits.in / hemasai09');
+  console.log('Resources    : 5 seeded (no images — upload via Admin UI)');
   console.log('--------------------------------------------------');
 }
 
