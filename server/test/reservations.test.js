@@ -6,6 +6,15 @@ import { hashPassword } from '../src/utils/auth.js';
 
 const request = supertest(app);
 
+function futureTimes() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(10, 0, 0, 0);
+  const start = tomorrow.toISOString();
+  const end = new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000).toISOString();
+  return { start, end };
+}
+
 async function seedOrg(orgName, userEmail, userPassword = 'password123') {
   const org = await prisma.organization.create({
     data: { name: orgName, slug: orgName.toLowerCase().replace(/\s+/g, '-') },
@@ -27,6 +36,9 @@ async function seedOrg(orgName, userEmail, userPassword = 'password123') {
       name: 'Room A',
       type: 'meeting_room',
       isActive: true,
+      openTime: '00:00',
+      closeTime: '23:59',
+      quantity: 1,
     },
   });
 
@@ -43,9 +55,7 @@ describe('POST /api/v1/reservations', () => {
   it('creates a reservation successfully (201)', async () => {
     const { user, resource } = await seedOrg('Org Alpha', 'alpha@example.com');
     const cookie = await loginAs('alpha@example.com');
-
-    const start = new Date(Date.now() + 3600_000).toISOString();
-    const end = new Date(Date.now() + 7200_000).toISOString();
+    const { start, end } = futureTimes();
 
     const res = await request
       .post('/api/v1/reservations')
@@ -63,9 +73,7 @@ describe('POST /api/v1/reservations', () => {
   it('blocks overlapping reservation (409)', async () => {
     const { resource } = await seedOrg('Org Beta', 'beta@example.com');
     const cookie = await loginAs('beta@example.com');
-
-    const start = new Date(Date.now() + 3600_000).toISOString();
-    const end = new Date(Date.now() + 7200_000).toISOString();
+    const { start, end } = futureTimes();
 
     await request
       .post('/api/v1/reservations')
@@ -85,9 +93,7 @@ describe('POST /api/v1/reservations/:id/cancel', () => {
   it('owner can cancel their own reservation (200)', async () => {
     const { resource } = await seedOrg('Org Gamma', 'gamma@example.com');
     const cookie = await loginAs('gamma@example.com');
-
-    const start = new Date(Date.now() + 3600_000).toISOString();
-    const end = new Date(Date.now() + 7200_000).toISOString();
+    const { start, end } = futureTimes();
 
     const created = await request
       .post('/api/v1/reservations')
@@ -105,7 +111,7 @@ describe('POST /api/v1/reservations/:id/cancel', () => {
   it('non-admin member cannot cancel another user reservation (403)', async () => {
     const { org, resource } = await seedOrg('Org Delta', 'delta-admin@example.com');
 
-    const member = await prisma.user.create({
+    await prisma.user.create({
       data: {
         organizationId: org.id,
         name: 'Member User',
@@ -117,9 +123,7 @@ describe('POST /api/v1/reservations/:id/cancel', () => {
 
     const adminCookie = await loginAs('delta-admin@example.com');
     const memberCookie = await loginAs('delta-member@example.com');
-
-    const start = new Date(Date.now() + 3600_000).toISOString();
-    const end = new Date(Date.now() + 7200_000).toISOString();
+    const { start, end } = futureTimes();
 
     const created = await request
       .post('/api/v1/reservations')
@@ -141,9 +145,7 @@ describe('Cross-tenant isolation', () => {
 
     const cookieA = await loginAs('epsilon@example.com');
     const cookieB = await loginAs('zeta@example.com');
-
-    const start = new Date(Date.now() + 3600_000).toISOString();
-    const end = new Date(Date.now() + 7200_000).toISOString();
+    const { start, end } = futureTimes();
 
     const created = await request
       .post('/api/v1/reservations')

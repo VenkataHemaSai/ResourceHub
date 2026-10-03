@@ -2,13 +2,27 @@ import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { requireAuth } from '../../middleware/requireAuth.js';
 import { requireRole } from '../../middleware/requireRole.js';
-import { banSchema, updateBanSchema, listBans, banUser, unbanUser, updateBan } from '../../controllers/users/banController.js';
-import { createUser, getUser, listUsers, createUserSchema } from '../../controllers/users/userController.js';
+import {
+  banSchema,
+  updateBanSchema,
+  listBans,
+  banUser,
+  unbanUser,
+  updateBan,
+  getMyBans,
+} from '../../controllers/users/banController.js';
+import {
+  createUser,
+  getUser,
+  listUsers,
+  createUserSchema,
+} from '../../controllers/users/userController.js';
 
 const router = Router();
 
 router.use(requireAuth);
 
+router.get('/bans/me', getMyBans);
 router.get('/:id', getUser);
 
 router.use(requireRole('ADMIN'));

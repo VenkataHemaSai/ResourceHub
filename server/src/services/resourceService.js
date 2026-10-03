@@ -140,7 +140,7 @@ export const resourceService = {
       where: {
         resourceId,
         organizationId,
-        status: 'CONFIRMED',
+        status: { in: ['PENDING_ALLOCATION', 'ALLOCATED'] },
         startTime: { lt: endOfDay },
         endTime: { gt: startOfDay },
       },
@@ -151,15 +151,16 @@ export const resourceService = {
       resourceId,
       date: dateString,
       timezone,
+      quantity: resource.quantity,
       rules: {
         minDurationMinutes: resource.minDurationMinutes,
         maxDurationMinutes: resource.maxDurationMinutes,
         openTime: resource.openTime,
         closeTime: resource.closeTime,
       },
-      reservations: existingReservations.map(r => ({
+      reservations: existingReservations.map((r) => ({
         startTime: r.startTime,
-        endTime: r.endTime,
+        endTime: new Date(r.endTime.getTime() + 15 * 60 * 1000),
       })),
     };
   }

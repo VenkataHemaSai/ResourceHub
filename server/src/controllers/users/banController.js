@@ -55,3 +55,11 @@ export async function updateBan(req, res, next) {
     next(err);
   }
 }
+export async function getMyBans(req, res, next) {
+  try {
+    const bans = await banService.getUserBans(req.user.organizationId, req.user.userId);
+    res.json({ data: bans });
+  } catch (err) {
+    next(err);
+  }
+}

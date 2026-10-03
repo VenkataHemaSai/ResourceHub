@@ -324,6 +324,17 @@ export default function ResourceDetailPage() {
             Back to Resources
           </Link>
         </Button>
+
+        {resource.imageUrl && (
+          <div className="w-full h-56 rounded-xl overflow-hidden mb-4 border border-border/50">
+            <img
+              src={resource.imageUrl}
+              alt={resource.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
             <PageHeader

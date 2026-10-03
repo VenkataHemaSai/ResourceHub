@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { LogOut, Menu, X, LayoutDashboard, Box, CalendarDays, Users, BookOpen } from 'lucide-react';
+import { LogOut, Menu, X, LayoutDashboard, Box, CalendarDays, Users, BookOpen, ShieldOff } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { RoleGate } from '@/components/shared/RoleGate';
 
@@ -22,6 +22,7 @@ const NAV_LINKS = [
 const ADMIN_LINKS = [
   { to: '/dashboard/team', label: 'Team', icon: Users },
   { to: '/dashboard/admin/reservations', label: 'All Bookings', icon: BookOpen },
+  { to: '/dashboard/admin/bans', label: 'Suspensions', icon: ShieldOff },
 ];
 
 function MobileNav({ open, onClose }) {
